@@ -15,6 +15,12 @@ The script uses Android SDK Platform `android-37.0`, Build Tools `36.0.0`, Andro
 
 Libraries are Espressif esptool-js 0.6.0, usb-serial-for-android 3.10.0 at `a8b9ecc7d32ce6df749c44a2b9e8cb208ac30609`, and esbuild 0.25.10 for the JavaScript bundle. The WebView serial bridge pattern follows esp-flash-android revision `c4036ace9d2f5526e3535d1ac8bfb8ac3bafc23d`. The APK includes the MIT and Apache-2.0 licenses. The build generates the serial library's compile-time configuration and omits its AndroidX source annotation.
 
+### GitHub Actions
+
+[Android build](.github/workflows/android.yml) runs the tests and APK build on pushes to `main` and pull requests. To run it manually, open **Actions → Android build → Run workflow**. Download `meshforge-android-debug` from a successful run for the APK and its SHA-256 checksum.
+
+Each CI run signs with its own debug key. Android requires the same signing key for upgrades, so use the APK under **Releases** to update a release installation. The workflow uploads test artifacts only. Release publishing uses the maintainer's signing key.
+
 ## Use
 
 **Flash** shows the USB state, selected board, firmware role, repository, and staged image. **Library** shows searchable release rows and role filters. **Repos** opens the repository list, and **Settings** also includes diagnostics. Confirmed flashing and bootloader probes open the progress screen, which reports stages from the live operation.
