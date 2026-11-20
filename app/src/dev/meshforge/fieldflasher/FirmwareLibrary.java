@@ -278,7 +278,7 @@ final class FirmwareLibrary {
             connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(12_000);
             connection.setReadTimeout(12_000);
-            connection.setRequestProperty("User-Agent", "MeshForge-Field-Flasher/0.1.15");
+            connection.setRequestProperty("User-Agent", "MeshForge-Field-Flasher/0.1.16");
             try {
                 int code = connection.getResponseCode();
                 long announced = connection.getContentLengthLong();

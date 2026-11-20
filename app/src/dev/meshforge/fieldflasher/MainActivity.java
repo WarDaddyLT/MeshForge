@@ -85,7 +85,7 @@ public final class MainActivity extends Activity {
         log = new DiagnosticLog(getFilesDir());
         usb = getSystemService(UsbManager.class);
         repositories = new ReleaseRepositories(this);
-        log.add("app", "Started version=0.1.15 Android=" + Build.VERSION.RELEASE + " API=" +
+        log.add("app", "Started version=0.1.16 Android=" + Build.VERSION.RELEASE + " API=" +
                 Build.VERSION.SDK_INT + " model=" + Build.MODEL + " usbHost=" +
                 getPackageManager().hasSystemFeature(PackageManager.FEATURE_USB_HOST));
         try {

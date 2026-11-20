@@ -2,6 +2,8 @@
 
 Choose a board and browse compatible firmware from MeshCore Flasher, SaveMeshcore, and MeshCore-Solo. The app can program approved ThinkNode M5 app images over its WCH USB serial bridge and save verified firmware for other supported boards. Use an Android 13 or newer phone with USB host support. This repository contains the Android app. Radio firmware is obtained from external releases and verified on the phone.
 
+[Download the latest Android APK](https://github.com/WarDaddyLT/MeshForge/releases/latest).
+
 ## Build
 
 From the repository root:
