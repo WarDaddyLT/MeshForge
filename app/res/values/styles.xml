@@ -1,0 +1,11 @@
+<resources>
+    <style name="MeshForgeTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">#7B4A21</item>
+        <item name="android:colorBackground">#F9E9D0</item>
+        <item name="android:windowBackground">#D7983A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">#7B4A21</item>
+        <item name="android:navigationBarColor">#7B4A21</item>
+    </style>
+</resources>

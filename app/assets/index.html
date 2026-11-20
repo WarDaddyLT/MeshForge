@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file:">
+<title>MeshForge</title>
+<link rel="stylesheet" href="style.css">
+<header id="homeHeader" class="workshop-header">
+  <h1 class="home-banner"><img src="meshforge-banner-wide.png" alt="MeshForge" width="1200" height="210"></h1>
+  <img class="home-forge" src="forge-home-tall.jpg" alt="" width="1200" height="1200">
+</header>
+<main>
+  <header id="pageHeader" class="wood-title" hidden><button id="backToFlash" aria-label="Back to Flash">‹</button><h1 id="pageTitle"></h1></header>
+
+  <nav class="workshop-nav" aria-label="App pages">
+    <button id="showFirmware" aria-current="page"><img class="nav-icon" src="sprite-hammer.png" alt="" width="26" height="26">Flash</button>
+    <button id="showLibrary" aria-current="false"><img class="nav-icon" src="sprite-anvil.png" alt="" width="26" height="26">Library</button>
+    <button id="showRepos" aria-current="false"><img class="nav-icon" src="sprite-mesh.png" alt="" width="26" height="26">Repos</button>
+    <button id="showRepositories" aria-current="false"><img class="nav-icon" src="sprite-tools.png" alt="" width="26" height="26">Settings</button>
+  </nav>
+
+  <div id="firmwarePage">
+    <div id="connectionBanner" class="connection-banner" role="status" data-state="waiting">
+      <span class="connection-icon" aria-hidden="true"><img src="sprite-bee.png" alt="" width="38" height="38">
+        <img src="sprite-bee-connected.png" alt="" width="38" height="38"></span>
+      <div><strong id="connectionTitle">Waiting for USB</strong><p id="usb">Checking connection…</p></div>
+    </div>
+    <section class="device-card"><h2 class="wood-label">Connected device</h2>
+      <div id="devices" hidden><label for="device">USB device</label><select id="device"></select>
+        <p id="deviceInfo"></p></div>
+      <div class="actions"><button id="scan">Scan USB</button><button id="connect" disabled>Probe USB</button></div>
+      <div class="device-fields">
+        <div class="device-field"><label for="board">Board</label><select id="board" disabled>
+          <option value="">Loading board catalogue…</option></select></div>
+        <p id="boardInfo" class="field-note"></p>
+        <div class="device-field"><label for="role">Firmware type</label><select id="role" disabled></select></div>
+        <div class="device-field"><label for="repository">Repository</label><select id="repository">
+          <option value="official">MeshCore Flasher</option><option value="save">SaveMeshcore</option><option value="solo">MeshCore-Solo</option>
+        </select></div>
+        <div class="device-field" id="stagedField"><strong>Staged image</strong>
+          <p id="stagedImage" class="field-note">Download a compatible build in Library</p></div>
+      </div>
+      <p id="job" class="field-note" role="status">Connect a device or choose a board.</p>
+      <button id="flash" class="primary" disabled><img class="action-icon" src="sprite-hammer.png" alt="" width="22" height="22"> Review and flash</button>
+      <button id="probe" class="layout-check" hidden disabled>Check bootloader layout</button>
+    </section>
+    <section class="library-summary"><h2 class="wood-label">Firmware library</h2>
+      <button class="library-link" id="flashToLibrary"><span><strong id="flashLibraryLabel">Browse firmware</strong><small id="flashLibraryDetail">Find compatible builds and offline copies</small></span><span aria-hidden="true">›</span></button>
+      <button class="library-link" id="flashPickLocal"><span><strong>Browse local firmware</strong><small>Choose a UF2, BIN, ZIP, or HEX file</small></span><span aria-hidden="true">›</span></button>
+    </section>
+    <section id="bootloaderPanel" hidden><h2 class="wood-label">OTAFix bootloader</h2><p id="otaStatus" role="status"></p>
+      <div class="actions"><button id="readBootloader" disabled>Read INFO_UF2.TXT</button></div>
+      <div id="otaDownloads" class="actions"></div></section>
+  </div>
+
+  <div id="libraryPage" hidden>
+    <section class="library-controls" aria-label="Firmware library controls">
+      <nav class="library-tabs" aria-label="Library pages"><button class="gold" aria-current="page">Firmware</button>
+        <button id="libraryToRepos">Repositories</button></nav>
+      <label for="librarySearch">Search firmware</label>
+      <input id="librarySearch" type="search" placeholder="Name, version, or format">
+      <div class="actions">
+        <button id="librarySelection">Change selection</button>
+        <button id="versions" disabled>Refresh</button>
+        <button id="pickLocal">Browse local firmware</button>
+      </div>
+      <p id="libraryScope" class="field-note"></p><div id="libraryRoles" class="actions role-filters" aria-label="Firmware role"></div>
+    </section>
+    <select id="version" aria-label="Selected firmware" hidden disabled></select>
+    <button id="fetch" hidden disabled>Download image</button>
+    <p id="versionStatus" class="library-message" role="status"></p>
+    <ul id="libraryResults" class="library-results" aria-label="Available firmware"></ul>
+    <section id="libraryActions">
+      <div class="actions"><button id="allSaveAssets" hidden>All published assets</button>
+        <button id="openOfficial" hidden>Open board on MeshCore Flasher</button>
+        <button id="saveImage" hidden>Save firmware file</button>
+        <button id="saveLocal" hidden>Save local UF2 copy</button></div>
+      <p id="downloadStatus" role="status"></p><p id="saveStatus" role="status"></p><p id="localStatus" role="status"></p>
+    </section>
+  </div>
+
+  <div id="repositoryPage" hidden>
+    <section><h2 id="repositoryHeading" class="wood-label">Repositories</h2>
+      <div id="repositoryList"></div>
+      <details class="add-repository">
+        <summary>Add a repository</summary>
+        <label for="repositoryUrl">GitHub repository or release URL</label>
+        <input id="repositoryUrl" type="url" inputmode="url" maxlength="400" placeholder="https://github.com/owner/repository">
+        <label for="repositoryKind">Category</label><select id="repositoryKind">
+          <option value="firmware">Firmware</option><option value="bootloader">OTA bootloaders</option></select>
+        <button id="addRepository">Add repository</button>
+      </details>
+      <p id="repositoryStatus" role="status"></p>
+    </section>
+    <section id="diagnostics"><h2 class="wood-label">Diagnostics</h2><p>Export a copy after a connection or flashing problem.</p>
+      <div class="actions"><button id="show">Refresh log</button><button id="export">Export log</button></div>
+      <pre aria-label="Recent diagnostic events" id="log" tabindex="0"></pre><p id="exportStatus" role="status"></p></section>
+  </div>
+
+  <div id="progressPage" hidden>
+    <div id="forgeScene" class="forge-scene" aria-hidden="true">
+      <img class="forge-hearth" src="sprite-hearth.png" alt="">
+      <img class="forge-mascot" src="sprite-mascot.png" alt="">
+      <img class="forge-sparks" src="sprite-sparks.png" alt="">
+    </div>
+    <section class="progress-card"><h2 id="progressTarget">ThinkNode M5</h2><p id="progressImage"></p>
+      <div class="progress-meter"><progress id="progress" aria-label="Firmware transfer" max="100"></progress>
+        <strong id="progressPercent"></strong></div>
+      <p id="progressStatus" role="status"></p>
+      <ol id="progressStages" class="progress-stages" aria-label="Flash stages">
+        <li id="stagePrepare">Prepare device <span></span></li>
+        <li id="stageWrite">Write firmware <span></span></li>
+        <li id="stageVerify">Verify firmware <span></span></li>
+        <li id="stageReset">Reset device <span></span></li>
+      </ol>
+      <p id="progressNotice" class="field-note">Keep the USB cable connected during this operation.</p>
+      <button id="progressDone" class="primary" hidden>Back to Flash</button>
+    </section>
+  </div>
+</main>
+<script src="esptool.bundle.js"></script>
+<script src="app.js"></script>
+</html>

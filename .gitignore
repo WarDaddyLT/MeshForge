@@ -1,0 +1,7 @@
+/app/out/
+/app/node_modules/
+.DS_Store
+.idea/
+*.iml
+*.keystore
+*.jks

@@ -1,0 +1,3994 @@
+[
+  {
+    "name": "Heltec v4 + Expansion Kit (Touch)",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_tft_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "heltec_v4_tft_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_tft_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "heltec_v4_tft_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "heltec_v4_tft_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "heltec_v4_tft_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "heltec_v4_tft_room_server.*?-merged\\.bin",
+            "flash-update": "heltec_v4_tft_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Deck",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TDeck_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "LilyGo_TDeck_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TDeck_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "LilyGo_TDeck_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "LilyGo_TDeck_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "LilyGo_TDeck_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "LilyGo_TDeck_room_server.*?-merged\\.bin",
+            "flash-update": "LilyGo_TDeck_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Seeed Studio Wio Tracker L1 Pro",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "WioTrackerL1_companion_radio_ble.*?\\.zip",
+            "download": "WioTrackerL1_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "WioTrackerL1_companion_radio_usb.*?\\.zip",
+            "download": "WioTrackerL1_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "WioTrackerL1_[rR]epeater.*?\\.zip",
+            "download": "WioTrackerL1_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "WioTrackerL1_room_server.*?\\.zip",
+            "download": "WioTrackerL1_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wio_tracker_l1_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wio_tracker_l1_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "LilyGo T3 S3 (SX126x)",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1262_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1262_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1262_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1262_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1262_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1262_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1262_room_server.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1262_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T3 S3 (SX127x)",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1276_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1276_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1276_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1276_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1276_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1276_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "LilyGo_T3S3_sx1276_room_server.*?-merged\\.bin",
+            "flash-update": "LilyGo_T3S3_sx1276_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Beam (SX1262)",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Tbeam_SX1262_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Tbeam_SX1262_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Tbeam_SX1262_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Tbeam_SX1262_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Tbeam_SX1262_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Tbeam_SX1262_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Tbeam_SX1262_room_server.*?-merged\\.bin",
+            "flash-update": "Tbeam_SX1262_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Beam 1.2 (SX1276)",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Tbeam(_SX1276)?_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Tbeam(_SX1276)?_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Tbeam(_SX1276)?_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Tbeam(_SX1276)?_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Tbeam(_SX1276)?_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Tbeam(_SX1276)?_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Tbeam(_SX1276)?_room_server.*?-merged\\.bin",
+            "flash-update": "Tbeam(_SX1276)?_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Beam 1W",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TBeam_1W_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "LilyGo_TBeam_1W_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TBeam_1W_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "LilyGo_TBeam_1W_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "LilyGo_TBeam_1W_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "LilyGo_TBeam_1W_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "LilyGo_TBeam_1W_room_server.*?-merged\\.bin",
+            "flash-update": "LilyGo_TBeam_1W_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Beam Supreme (SX1262)",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "T_Beam_S3_Supreme_SX1262_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "T_Beam_S3_Supreme_SX1262_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "T_Beam_S3_Supreme_SX1262_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "T_Beam_S3_Supreme_SX1262_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "T_Beam_S3_Supreme_SX1262_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "T_Beam_S3_Supreme_SX1262_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "T_Beam_S3_Supreme_SX1262_room_server.*?-merged\\.bin",
+            "flash-update": "T_Beam_S3_Supreme_SX1262_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Echo",
+    "maker": "LilyGo",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo_companion_radio_ble.*?\\.zip",
+            "download": "LilyGo_T-Echo_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo_companion_radio_usb.*?\\.zip",
+            "download": "LilyGo_T-Echo_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "LilyGo_T-Echo_[rR]epeater.*?\\.zip",
+            "download": "LilyGo_T-Echo_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "LilyGo_T-Echo_room_server.*?\\.zip",
+            "download": "LilyGo_T-Echo_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "lilygo_techo_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "lilygo_techo_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "LilyGo T-Echo Lite",
+    "maker": "LilyGo",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo-Lite_companion_radio_ble.*?\\.zip",
+            "download": "LilyGo_T-Echo-Lite_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo-Lite_companion_radio_usb.*?\\.zip",
+            "download": "LilyGo_T-Echo-Lite_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "LilyGo_T-Echo-Lite_[rR]epeater.*?\\.zip",
+            "download": "LilyGo_T-Echo-Lite_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "LilyGo_T-Echo-Lite_room_server.*?\\.zip",
+            "download": "LilyGo_T-Echo-Lite_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Echo Card",
+    "maker": "LilyGo",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo_Card_companion_radio_ble.*?\\.zip",
+            "download": "LilyGo_T-Echo_Card_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "LilyGo_T-Echo_Card_companion_radio_usb.*?\\.zip",
+            "download": "LilyGo_T-Echo_Card_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "LilyGo_T-Echo_Card_[rR]epeater.*?\\.zip",
+            "download": "LilyGo_T-Echo_Card_[rR]epeater.*?\\.uf2"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "LilyGo T-Lora Pager",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "LilyGo_T-Echo_Card_room_server.*?\\.zip",
+            "download": "LilyGo_T-Echo_Card_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "LilyGo LoRa32 V2.1_1.6",
+    "maker": "LilyGo",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TLora_V2_1_1_6_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "LilyGo_TLora_V2_1_1_6_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "LilyGo_TLora_V2_1_1_6_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "LilyGo_TLora_V2_1_1_6_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "LilyGo_TLora_V2_1_1_6_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "LilyGo_TLora_V2_1_1_6_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "LilyGo_TLora_V2_1_1_6_room_server.*?-merged\\.bin",
+            "flash-update": "LilyGo_TLora_V2_1_1_6_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "GAT-IoT GAT562 Tracker",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "GAT562_Mesh_Tracker_Pro_companion_radio_ble.*?\\.zip",
+            "download": "GAT562_Mesh_Tracker_Pro_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "GAT562_Mesh_Tracker_Pro_companion_radio_usb.*?\\.zip",
+            "download": "GAT562_Mesh_Tracker_Pro_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "GAT562_Mesh_Tracker_Pro_[rR]epeater.*?\\.zip",
+            "download": "GAT562_Mesh_Tracker_Pro_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "GAT562_Mesh_Tracker_Pro_room_server.*?\\.zip",
+            "download": "GAT562_Mesh_Tracker_Pro_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.zip"
+    ]
+  },
+  {
+    "name": "GAT-IoT GAT562 30s",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "GAT562_30S_Mesh_Kit_companion_radio_ble.*?\\.zip",
+            "download": "GAT562_30S_Mesh_Kit_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "GAT562_30S_Mesh_Kit_companion_radio_usb.*?\\.zip",
+            "download": "GAT562_30S_Mesh_Kit_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "GAT562_30S_Mesh_Kit_[rR]epeater.*?\\.zip",
+            "download": "GAT562_30S_Mesh_Kit_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "GAT562_Mesh_Tracker_Pro_room_server.*?\\.zip",
+            "download": "GAT562_Mesh_Tracker_Pro_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.zip"
+    ]
+  },
+  {
+    "name": "Heltec Vision Master E213",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_E213_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_E213_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_E213_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_E213_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_E213_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_E213_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_E213_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_E213_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec Vision Master E290",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_E290_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_E290_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_E290_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_E290_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_E290_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_E290_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_E290_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_E290_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec v2",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_v2_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_v2_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_v2_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_v2_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_v2_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_v2_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_v2_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_v2_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec v3",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_v3_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_v3_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_v3_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_v3_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_v3_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_v3_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_v3_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_v3_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec v4",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "heltec_v4_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "heltec_v4_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "heltec_v4_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "heltec_v4_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "heltec_v4_room_server.*?-merged\\.bin",
+            "flash-update": "heltec_v4_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec v4 R8",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_r8_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "heltec_v4_r8_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_v4_r8_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "heltec_v4_r8_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "heltec_v4_r8_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "heltec_v4_r8_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "heltec_v4_r8_room_server.*?-merged\\.bin",
+            "flash-update": "heltec_v4_r8_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      }
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Heltec Mesh Node T096",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t096_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_t096_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t096_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_t096_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_t096_[rR]epeater.*?\\.zip",
+            "download": "Heltec_t096_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_t096_room_server.*?\\.zip",
+            "download": "Heltec_t096_room_server.*?\\.uf2"
+          }
+        }
+      }
+    ],
+    "otafix": [
+      "heltec_t096_bootloader-0.9.2-OTAFIX2.3.uf2",
+      "heltec_t096_bootloader-0.9.2-OTAFIX2.3.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Heltec Mesh Node T1",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t1_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_t1_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t1_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_t1_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_t1_[rR]epeater.*?\\.zip",
+            "download": "Heltec_t1_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_t1_room_server.*?\\.zip",
+            "download": "Heltec_t1_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "heltec_t1_bootloader-0.9.2-OTAFIX2.3.uf2",
+      "heltec_t1_bootloader-0.9.2-OTAFIX2.3.zip"
+    ]
+  },
+  {
+    "name": "Heltec T114",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t114_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_t114_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t114_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_t114_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_t114_[rR]epeater.*?\\.zip",
+            "download": "Heltec_t114_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_t114_room_server.*?\\.zip",
+            "download": "Heltec_t114_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t114_without_display_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_t114_without_display_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_t114_without_display_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_t114_without_display_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_t114_without_display_[rR]epeater.*?\\.zip",
+            "download": "Heltec_t114_without_display_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_t114_without_display_room_server.*?\\.zip",
+            "download": "Heltec_t114_without_display_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "heltec_t114_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "heltec_t114_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Heltec Wireless Tracker v2",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_tracker_v2_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "heltec_tracker_v2_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "heltec_tracker_v2_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "heltec_tracker_v2_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "heltec_tracker_v2_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "heltec_tracker_v2_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "heltec_tracker_v2_room_server.*?-merged\\.bin",
+            "flash-update": "heltec_tracker_v2_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec MeshPocket",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Mesh_pocket_companion_radio_ble.*?\\.zip",
+            "download": "Mesh_pocket_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Mesh_pocket_companion_radio_usb.*?\\.zip",
+            "download": "Mesh_pocket_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Mesh_pocket_[rR]epeater.*?\\.zip",
+            "download": "Mesh_pocket_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Mesh_pocket_room_server.*?\\.zip",
+            "download": "Mesh_pocket_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec MeshSolar / MeshTower",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_mesh_solar_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_mesh_solar_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_mesh_solar_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_mesh_solar_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_mesh_solar_[rR]epeater.*?\\.zip",
+            "download": "Heltec_mesh_solar_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_mesh_solar_room_server.*?\\.zip",
+            "download": "Heltec_mesh_solar_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Heltec MeshTower V2",
+    "maker": "Heltec",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_tower_v2_companion_radio_ble.*?\\.zip",
+            "download": "Heltec_tower_v2_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Heltec_tower_v2_companion_radio_usb.*?\\.zip",
+            "download": "Heltec_tower_v2_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Heltec_tower_v2_[rR]epeater.*?\\.zip",
+            "download": "Heltec_tower_v2_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Heltec_tower_v2_room_server.*?\\.zip",
+            "download": "Heltec_tower_v2_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec Wireless Tracker",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Tracker_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Tracker_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Tracker_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Tracker_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Tracker_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Tracker_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Tracker_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Tracker_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec Heltec Wireless Paper",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Paper_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Paper_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Paper_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Paper_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Paper_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Paper_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_Wireless_Paper_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_Wireless_Paper_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Heltec WSL3",
+    "maker": "Heltec",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_WSL3_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Heltec_WSL3_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Heltec_WSL3_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Heltec_WSL3_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Heltec_WSL3_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Heltec_WSL3_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Heltec_WSL3_room_server.*?-merged\\.bin",
+            "flash-update": "Heltec_WSL3_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Ikoka Stick",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_22dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_stick_nrf_22dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_22dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_stick_nrf_22dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_stick_nrf_22dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_stick_nrf_22dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_stick_nrf_22dbm_room_server.*?\\.zip",
+            "download": "ikoka_stick_nrf_22dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_30dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_stick_nrf_30dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_30dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_stick_nrf_30dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_stick_nrf_30dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_stick_nrf_30dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_stick_nrf_30dbm_room_server.*?\\.zip",
+            "download": "ikoka_stick_nrf_30dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_33dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_stick_nrf_33dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_stick_nrf_33dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_stick_nrf_33dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_stick_nrf_33dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_stick_nrf_33dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_stick_nrf_33dbm_room_server.*?\\.zip",
+            "download": "ikoka_stick_nrf_33dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "xiao_nrf52840_ble_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "xiao_nrf52840_ble_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Ikoka Nano",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_22dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_nano_nrf_22dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_22dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_nano_nrf_22dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_nano_nrf_22dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_nano_nrf_22dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_nano_nrf_22dbm_room_server.*?\\.zip",
+            "download": "ikoka_nano_nrf_22dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_30dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_nano_nrf_30dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_30dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_nano_nrf_30dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_nano_nrf_30dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_nano_nrf_30dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_nano_nrf_30dbm_room_server.*?\\.zip",
+            "download": "ikoka_nano_nrf_30dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_33dbm_companion_radio_ble.*?\\.zip",
+            "download": "ikoka_nano_nrf_33dbm_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ikoka_nano_nrf_33dbm_companion_radio_usb.*?\\.zip",
+            "download": "ikoka_nano_nrf_33dbm_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ikoka_nano_nrf_33dbm_[Rr]epeater.*?\\.zip",
+            "download": "ikoka_nano_nrf_33dbm_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ikoka_nano_nrf_33dbm_room_server.*?\\.zip",
+            "download": "ikoka_nano_nrf_33dbm_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "xiao_nrf52840_ble_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "xiao_nrf52840_ble_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Keepteen LT1",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "KeepteenLT1_companion_radio_ble.*?\\.zip",
+            "download": "KeepteenLT1_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "KeepteenLT1_companion_radio_usb.*?\\.zip",
+            "download": "KeepteenLT1_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "KeepteenLT1_[rR]epeater.*?\\.zip",
+            "download": "KeepteenLT1_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "KeepteenLT1_room_server.*?\\.zip",
+            "download": "KeepteenLT1_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.zip"
+    ]
+  },
+  {
+    "name": "RAK WisBlock 3112",
+    "maker": "RAK Wireless",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "RAK_3112_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "RAK_3112_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "RAK_3112_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "RAK_3112_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "RAK_3112_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "RAK_3112_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "RAK3112_room_server.*?-merged\\.bin",
+            "flash-update": "RAK3112_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "RAK WisBlock / WisMesh (RAK 4631)",
+    "maker": "RAK Wireless",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_4631_companion_radio_ble.*?\\.zip",
+            "download": "RAK_4631_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_4631_companion_radio_usb.*?\\.zip",
+            "download": "RAK_4631_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "RAK_4631_[rR]epeater.*?\\.zip",
+            "download": "RAK_4631_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "RAK_4631_room_server.*?\\.zip",
+            "download": "RAK_4631_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wiscore_rak4631_board_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "RAK WisMesh 1W Booster (3401 + 13302)",
+    "maker": "RAK Wireless",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_3401_companion_radio_ble.*?\\.zip",
+            "download": "RAK_3401_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_3401_companion_radio_usb.*?\\.zip",
+            "download": "RAK_3401_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "RAK_3401_[rR]epeater.*?\\.zip",
+            "download": "RAK_3401_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "RAK_3401_room_server.*?\\.zip",
+            "download": "RAK_3401_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wiscore_rak3401_board_bootloader-0.9.2-OTAFIX2.3.uf2",
+      "wiscore_rak3401_board_bootloader-0.9.2-OTAFIX2.3.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "RAK WisMesh Tag",
+    "maker": "RAK Wireless",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_WisMesh_Tag_companion_radio_ble.*?\\.zip",
+            "download": "RAK_WisMesh_Tag_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "RAK_WisMesh_Tag_companion_radio_usb.*?\\.zip",
+            "download": "RAK_WisMesh_Tag_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "RAK_WisMesh_Tag_[rR]epeater.*?\\.zip",
+            "download": "RAK_WisMesh_Tag_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "RAK_WisMesh_Tag_room_server.*?\\.zip",
+            "download": "RAK_WisMesh_Tag_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wismesh_tag_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wismesh_tag_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Seeed Studio SenseCAP Solar Node P1",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "SenseCap_Solar_companion_radio_ble.*?\\.zip",
+            "download": "SenseCap_Solar_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "SenseCap_Solar_companion_radio_usb.*?\\.zip",
+            "download": "SenseCap_Solar_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "SenseCap_Solar_[rR]epeater.*?\\.zip",
+            "download": "SenseCap_Solar_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "SenseCap_Solar_room_server.*?\\.zip",
+            "download": "SenseCap_Solar_room_server.*?\\.uf2"
+          }
+        }
+      }
+    ],
+    "otafix": [
+      "sensecap_solar_p1_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "sensecap_solar_p1_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Seeed Studio SenseCAP T1000-E",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "notice": "<article class='tertiary-container'>Please do not flash MeshCore firmware to LoRaWAN version of the t1000e, it can permantently brick the device</article>",
+          "files": {
+            "flash": "t1000e_companion_radio_ble.*?\\.zip",
+            "download": "t1000e_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "t1000e_companion_radio_usb.*?\\.zip",
+            "download": "t1000e_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "t1000e_[rR]epeater.*?\\.zip",
+            "download": "t1000e_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "t1000e_room_server.*?\\.zip",
+            "download": "t1000e_room_server.*?\\.uf2"
+          }
+        }
+      }
+    ],
+    "otafix": [
+      "t1000_e_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "t1000_e_bootloader-0.9.2-OTAFIX2.2.zip"
+    ]
+  },
+  {
+    "name": "Seeed Studio SenseCAP MeshTracker X1",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "MeshTracker_X1_companion_radio_ble.*?\\.zip",
+            "download": "MeshTracker_X1_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "MeshTracker_X1_companion_radio_usb.*?\\.zip",
+            "download": "MeshTracker_X1_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "MeshTracker_X1_[rR]epeater.*?\\.zip",
+            "download": "MeshTracker_X1_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "MeshTracker_X1_room_server.*?\\.zip",
+            "download": "MeshTracker_X1_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Seeed Studio Wio Tracker L1 EINK",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "WioTrackerL1Eink_companion_radio_ble.*?\\.zip",
+            "download": "WioTrackerL1Eink_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "WioTrackerL1Eink_companion_radio_usb.*?\\.zip",
+            "download": "WioTrackerL1Eink_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "WioTrackerL1Eink_[rR]epeater.*?\\.zip",
+            "download": "WioTrackerL1Eink_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "WioTrackerL1Eink_room_server.*?\\.zip",
+            "download": "WioTrackerL1Eink_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "wio_tracker_l1_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "wio_tracker_l1_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Seeed Studio Xiao C3",
+    "maker": "Seeed Studio",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Xiao_C3_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Xiao_C3_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Xiao_C3_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Xiao_C3_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Xiao_C3_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Xiao_C3_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Xiao_C3_sx1268_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Xiao_C3_sx1268_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Seeed Studio Xiao S3 WIO",
+    "maker": "Seeed Studio",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Xiao_S3_WIO_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Xiao_S3_WIO_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Xiao_S3_WIO_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Xiao_S3_WIO_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Xiao_S3_WIO_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Xiao_S3_WIO_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Xiao_S3_WIO_room_server.*?-merged\\.bin",
+            "flash-update": "Xiao_S3_WIO_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Seeed Studio Xiao nRF52 WIO",
+    "maker": "Seeed Studio",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Xiao_nrf52_companion_radio_ble.*?\\.zip",
+            "download": "Xiao_nrf52_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Xiao_nrf52_companion_radio_usb.*?\\.zip",
+            "download": "Xiao_nrf52_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "Xiao_nrf52_[rR]epeater.*?\\.zip",
+            "download": "Xiao_nrf52_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "Xiao_nrf52_room_server.*?\\.zip",
+            "download": "Xiao_nrf52_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "xiao_nrf52840_ble_bootloader-0.9.2-OTAFIX2.2.zip",
+      "xiao_nrf52840_ble_sense_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixNeeded",
+      "roomServer": "otafixNeeded"
+    }
+  },
+  {
+    "name": "Elecrow ThinkNode M1",
+    "maker": "Elecrow",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M1_companion_radio_ble.*?\\.zip",
+            "download": "ThinkNode_M1_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M1_companion_radio_usb.*?\\.zip",
+            "download": "ThinkNode_M1_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ThinkNode_M1_[rR]epeater.*?\\.zip",
+            "download": "ThinkNode_M1_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ThinkNode_M1_room_server.*?\\.zip",
+            "download": "ThinkNode_M1_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "thinknode_m1_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "thinknode_m1_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Elecrow ThinkNode M2",
+    "maker": "Elecrow",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M2_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M2_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M2_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M2_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "ThinkNode_M2_repeater.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M2_repeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "ThinkNode_M2_room_server.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M2_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Elecrow ThinkNode M3",
+    "maker": "Elecrow",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M3_companion_radio_ble.*?\\.zip",
+            "download": "ThinkNode_M3_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M3_companion_radio_usb.*?\\.zip",
+            "download": "ThinkNode_M3_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ThinkNode_M3_[rR]epeater.*?\\.zip",
+            "download": "ThinkNode_M3_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ThinkNode_M3_room_server.*?\\.zip",
+            "download": "ThinkNode_M3_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "thinknode_m3_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "thinknode_m3_bootloader-0.9.2-OTAFIX2.2.zip"
+    ]
+  },
+  {
+    "name": "Elecrow ThinkNode M5",
+    "maker": "Elecrow",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M5_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M5_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M5_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M5_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "ThinkNode_M5_repeater.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M5_repeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "ThinkNode_M5_room_server.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M5_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Elecrow ThinkNode M6",
+    "maker": "Elecrow",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M6_companion_radio_ble.*?\\.zip",
+            "download": "ThinkNode_M6_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "ThinkNode_M6_companion_radio_usb.*?\\.zip",
+            "download": "ThinkNode_M6_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "ThinkNode_M6_[rR]epeater.*?\\.zip",
+            "download": "ThinkNode_M6_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "ThinkNode_M6_room_server.*?\\.zip",
+            "download": "ThinkNode_M6_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "thinknode_m6_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "thinknode_m6_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "Elecrow ThinkNode M7",
+    "maker": "Elecrow",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M7_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M7_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "ThinkNode_M7_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M7_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "ThinkNode_M7_repeater.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M7_repeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "ThinkNode_M7_room_server.*?-merged\\.bin",
+            "flash-update": "ThinkNode_M7_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "UnitEng/BQ Voyage Station G3",
+    "maker": "",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Station_G3_ESP32_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Station_G3_ESP32_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Station_G3_ESP32_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Station_G3_ESP32_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Station_G3_ESP32_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Station_G3_ESP32_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Station_G3_ESP32_room_server.*?-merged\\.bin",
+            "flash-update": "Station_G3_ESP32_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "UnitEng Station G2",
+    "maker": "",
+    "type": "esp32",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Station_G2_companion_radio_ble.*?-merged\\.bin",
+            "flash-update": "Station_G2_companion_radio_ble.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash-wipe": "Station_G2_companion_radio_usb.*?-merged\\.bin",
+            "flash-update": "Station_G2_companion_radio_usb.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash-wipe": "Station_G2_[rR]epeater.*?-merged\\.bin",
+            "flash-update": "Station_G2_[rR]epeater.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash-wipe": "Station_G2_room_server.*?-merged\\.bin",
+            "flash-update": "Station_G2_room_server.*?-[a-f0-9]{7}\\.bin"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash-wipe",
+              "flash-update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "UnitEng Nano G2 Ultra",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Nano_G2_Ultra_companion_radio_ble.*?\\.zip",
+            "download": "Nano_G2_Ultra_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Nano_G2_Ultra_companion_radio_usb.*?\\.zip",
+            "download": "Nano_G2_Ultra_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Nano_G2_Ultra_[Rr]epeater.*?\\.zip",
+            "download": "Nano_G2_Ultra_[Rr]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "Nano_G2_Ultra_room_server.*?\\.zip",
+            "download": "Nano_G2_Ultra_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Muzi Works R1 Neo",
+    "maker": "",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "R1Neo_companion_radio_ble.*?\\.zip",
+            "download": "R1Neo_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "R1Neo_companion_radio_usb.*?\\.zip",
+            "download": "R1Neo_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "R1Neo_[rR]epeater.*?\\.zip",
+            "download": "R1Neo_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "R1Neo_room_server.*?\\.zip",
+            "download": "R1Neo_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "ProMicro nrf52 (faketec)",
+    "maker": "ProMicro",
+    "type": "nrf52",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "(?:ProMicro|Faketec)_companion_radio_ble.*?\\.zip",
+            "download": "(?:ProMicro|Faketec)_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "flash": "(?:ProMicro|Faketec)_companion_radio_usb.*?\\.zip",
+            "download": "(?:ProMicro|Faketec)_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "flash": "(?:ProMicro|Faketec)_[rR]epeater.*?\\.zip",
+            "download": "(?:ProMicro|Faketec)_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "flash": "(?:ProMicro|Faketec)_room_server.*?\\.zip",
+            "download": "(?:ProMicro|Faketec)_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "flash",
+              "download"
+            ]
+          }
+        ]
+      }
+    ],
+    "otafix": [
+      "promicro_nrf52840_bootloader-0.9.2-OTAFIX2.2.uf2",
+      "promicro_nrf52840_bootloader-0.9.2-OTAFIX2.2.zip"
+    ],
+    "otaNotices": {
+      "repeater": "otafixRecommended",
+      "roomServer": "otafixRecommended"
+    }
+  },
+  {
+    "name": "RPI Pico 2040 + WaveShare SX1262",
+    "maker": "Raspberry Pi",
+    "type": "noflash",
+    "roles": [
+      {
+        "id": "companionBle",
+        "title": "Companion Bluetooth",
+        "release": {
+          "type": "companion",
+          "files": {
+            "download": "PicoW_companion_radio_ble.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "companionUsb",
+        "title": "Companion USB",
+        "release": {
+          "type": "companion",
+          "files": {
+            "download": "PicoW_companion_radio_usb.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "repeater",
+        "title": "Repeater",
+        "release": {
+          "type": "repeater",
+          "files": {
+            "download": "PicoW_[rR]epeater.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "roomServer",
+        "title": "Room Server",
+        "release": {
+          "type": "room-server",
+          "files": {
+            "download": "PicoW_room_server.*?\\.uf2"
+          }
+        }
+      },
+      {
+        "id": "kissRadio",
+        "title": "KISS Radio Modem",
+        "static": [
+          {
+            "version": "1.17.1",
+            "types": [
+              "download"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
