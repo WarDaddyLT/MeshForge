@@ -4,6 +4,12 @@ Choose a board and browse compatible firmware from MeshCore Flasher, SaveMeshcor
 
 [Download the latest Android APK](https://github.com/WarDaddyLT/MeshForge/releases/latest).
 
+## AI-Assisted Development Declaration
+
+This work was developed with the assistance of AI tools under the supervision of its authors and contributors.
+
+AI-assisted implementation was subject to human direction, review, correction, and validation. The authors and contributors retain responsibility for their respective contributions, design decisions, quality control, and final approval of the work.
+
 ## Build
 
 From the repository root:
