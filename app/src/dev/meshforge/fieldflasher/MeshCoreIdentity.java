@@ -7,9 +7,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 final class MeshCoreIdentity {
-    record Result(String model, String version) {}
+    record Result(String model, String version, String role) {}
 
     static Result query(UsbSerialPort port, DiagnosticLog log) throws IOException {
+        var companion = queryCompanion(port, log);
+        if (companion != null) return companion;
+        var cli = new RepeaterCli(port, log);
+        String role = cli.readRole();
+        if (!role.equals("repeater") && !role.equals("room-server")) return null;
+        String model = label(cli.command("board", "board"), 100);
+        String version = label(cli.command("ver", "ver"), 150);
+        log.add("meshcore.query", "CLI identity role=" + role + " model=" + model + " version=" + version);
+        return new Result(model, version, role);
+    }
+
+    private static Result queryCompanion(UsbSerialPort port, DiagnosticLog log) throws IOException {
         // ArduinoSerialInterface framing; CMD_DEVICE_QUERY = 22, response = 13.
         port.write(new byte[]{'<', 2, 0, 22, 10}, 350);
         log.add("meshcore.query", "Sent DEVICE_QUERY framed 2-byte request");
@@ -41,7 +53,7 @@ final class MeshCoreIdentity {
             if (length < 80 || length > 512 || frame + length > used || data[frame] != 13) continue;
             String model = text(data, frame + 20, 40);
             String version = text(data, frame + 60, 20);
-            if (!model.isEmpty()) return new Result(model, version);
+            if (!model.isEmpty()) return new Result(model, version, "companionUsb");
         }
         return null;
     }
@@ -50,6 +62,12 @@ final class MeshCoreIdentity {
         int end = start;
         while (end < start + count && bytes[end] != 0) end++;
         String value = new String(Arrays.copyOfRange(bytes, start, end), StandardCharsets.UTF_8).trim();
-        return value.matches("[\\p{L}\\p{N} ._+&()/:-]+") ? value : "";
+        return label(value, count);
+    }
+
+    private static String label(String value, int limit) {
+        if (value == null) return "";
+        String label = value.strip();
+        return label.length() <= limit && label.matches("[\\p{L}\\p{N} ._+&()/:-]+") ? label : "";
     }
 }
