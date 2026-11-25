@@ -15,11 +15,12 @@ final class MeshCoreCatalogue {
     private final JSONArray boards;
     private final Map<String, JSONObject> boardByName = new LinkedHashMap<>();
     private final Map<String, String> aliases = new LinkedHashMap<>();
-    private static final String M5 = "Elecrow ThinkNode M5";
+    static final String M5 = "Elecrow ThinkNode M5";
     private static final String T_DECK = "LilyGo T-Deck";
     private static final String XIAO = "Seeed Studio Xiao S3 WIO";
     static final String RAK_1W = "RAK WisMesh 1W Booster (3401 + 13302)";
     private static final String WIO = "Seeed Studio Wio Tracker L1 Pro";
+    private static final String WIO_EINK = "Seeed Studio Wio Tracker L1 EINK";
     private final Map<String, JSONArray> forkReleases = new LinkedHashMap<>();
     private final Map<String, Long> forkFetchedAt = new LinkedHashMap<>();
     private JSONArray releases;
@@ -33,6 +34,8 @@ final class MeshCoreCatalogue {
             JSONObject board = boards.getJSONObject(i);
             String name = board.getString("name");
             String maker = board.optString("maker");
+            board.put("uf2Dfu", "nrf52".equals(board.optString("type")) && uf2Start(name) != 0);
+            board.put("dfuEntry", dfuInstructions(name));
             boardByName.put(name, board);
             addAlias(name, name);
             if (normalize(name).startsWith(normalize(maker) + " ")) {
@@ -77,6 +80,19 @@ final class MeshCoreCatalogue {
 
     boolean isNrf(String board) { return "nrf52".equals(entry(board).optString("type")); }
 
+    private static String dfuInstructions(String board) {
+        if (WIO.equals(board) || WIO_EINK.equals(board)) {
+            return "Keep USB connected, turn the radio on and quickly press RST twice. " +
+                    "The yellow LED should stay solid. Allow up to 15 seconds for the UF2 drive to appear.";
+        }
+        if (board.startsWith("LilyGo T-Echo")) {
+            return "With the radio connected, double-press RESET within about 500 ms to enter UF2 mode.";
+        }
+        return "Use the board manufacturer's hardware sequence to enter UF2/DFU mode.";
+    }
+
+    String dfuEntry(String board) { return entry(board).optString("dfuEntry"); }
+
     JSONArray otaFixes(String board) {
         JSONArray fixes = entry(board).optJSONArray("otafix");
         return fixes == null ? new JSONArray() : fixes;
@@ -84,7 +100,7 @@ final class MeshCoreCatalogue {
 
     static int uf2Start(String board) {
         return switch (board) {
-            case WIO, "Seeed Studio Wio Tracker L1 EINK" -> 0x27000;
+            case WIO, WIO_EINK -> 0x27000;
             case "LilyGo T-Echo", "LilyGo T-Echo Lite", RAK_1W -> 0x26000;
             default -> 0;
         };
@@ -99,32 +115,48 @@ final class MeshCoreCatalogue {
         };
     }
 
+    static boolean supportsDirectUpdate(String board, String source, String role) {
+        if (!M5.equals(board)) return false;
+        return switch (source) {
+            case "official" -> Set.of("companionBle", "companionUsb", "repeater").contains(role);
+            case "save" -> "repeater".equals(role);
+            default -> false;
+        };
+    }
+
     synchronized JSONArray versions(String board, String role, String source, FirmwareLibrary library) throws Exception {
         String repo = repository(source);
-        if (!board.isEmpty() || !source.equals("save")) entry(board);
+        if (!board.isEmpty()) entry(board);
         if (source.equals("official")) return officialVersions(board, role, library);
         return forkVersions(board, role, source, repo, library);
     }
 
     private JSONArray officialVersions(String board, String role, FirmwareLibrary library) throws Exception {
-        boolean m5 = M5.equals(board) && "companionBle".equals(role);
+        boolean direct = supportsDirectUpdate(board, "official", role);
         JSONArray result = new JSONArray();
-        boolean esp = board.equals(M5) || board.equals(T_DECK) || board.equals(XIAO);
-        if (!esp && uf2Start(board) == 0) return result;
-        JSONArray roles = entry(board).getJSONArray("roles");
-        JSONObject spec = null;
-        for (int i = 0; i < roles.length(); i++) {
-            JSONObject option = roles.getJSONObject(i);
-            if (role.equals(option.getString("id"))) {
-                spec = option.optJSONObject("release");
-                break;
+        String targetType = "";
+        Pattern targetFile = null;
+        if (!board.isEmpty()) {
+            boolean esp = board.equals(M5) || board.equals(T_DECK) || board.equals(XIAO);
+            JSONArray roles = entry(board).getJSONArray("roles");
+            JSONObject spec = null;
+            for (int i = 0; i < roles.length(); i++) {
+                JSONObject option = roles.getJSONObject(i);
+                if (role.equals(option.getString("id"))) {
+                    spec = option.optJSONObject("release");
+                    break;
+                }
+            }
+            if (spec != null) {
+                targetType = spec.getString("type");
+                String rule = spec.getJSONObject("files").optString(esp ? "flash-update" : "download");
+                if (!rule.isEmpty()) {
+                    // The published M5 repeater asset uses "Repeater" in releases with the lowercase catalogue rule.
+                    int flags = M5.equals(board) && "repeater".equals(role) ? Pattern.CASE_INSENSITIVE : 0;
+                    targetFile = Pattern.compile(rule, flags);
+                }
             }
         }
-        if (spec == null) return result;
-        String type = spec.getString("type");
-        String rule = spec.getJSONObject("files").optString(esp ? "flash-update" : "download");
-        if (rule.isEmpty()) return result;
-        var pattern = Pattern.compile(rule);
 
         long now = SystemClock.elapsedRealtime();
         if (releases == null || now - fetchedAt >= 5 * 60_000) {
@@ -134,24 +166,19 @@ final class MeshCoreCatalogue {
         }
         for (int i = 0; i < releases.length(); i++) {
             JSONObject release = releases.getJSONObject(i);
-            if (!type.equals(release.optString("type"))) continue;
+            String type = release.optString("type");
             String version = release.optString("version");
-            if (!version.matches("v[0-9]+\\.[0-9]+\\.[0-9]+")) continue;
+            if (type.isEmpty() || !version.matches("v[0-9]+\\.[0-9]+\\.[0-9]+")) continue;
             String tag = type + "-" + version;
             JSONArray files = release.getJSONArray("files");
-            String filename = "";
             for (int j = 0; j < files.length(); j++) {
                 JSONObject file = files.getJSONObject(j);
                 String name = file.optString("name");
-                if (!safeName(name) || !pattern.matcher(name).matches() ||
+                if (!safeName(name) || !firmwareName(name) ||
                         !file.optString("url").equals("/releases/download/" + tag + "/" + name)) continue;
-                if (!filename.isEmpty()) {
-                    filename = "";
-                    break;
-                }
-                filename = name;
+                boolean target = type.equals(targetType) && targetFile != null && targetFile.matcher(name).matches();
+                result.put(option(tag, version, name, target && direct, !target));
             }
-            if (!filename.isEmpty()) result.put(option(tag, version, filename, m5));
         }
         return result;
     }
@@ -160,14 +187,21 @@ final class MeshCoreCatalogue {
                                    FirmwareLibrary library) throws Exception {
         JSONArray result = new JSONArray();
         boolean save = source.equals("save") && role.equals("repeater");
-        boolean solo = source.equals("solo") && role.equals("solo") && board.equals(WIO);
+        boolean solo = source.equals("solo");
         if (!save && !solo) return result;
         var targets = save && !board.isEmpty() ? repeaterTargets(board) : java.util.List.<Pattern>of();
         long now = SystemClock.elapsedRealtime();
         if (!forkReleases.containsKey(source) || now - forkFetchedAt.get(source) >= 5 * 60_000) {
-            byte[] data = library.request("https://api.github.com/repos/" + repo + "/releases?per_page=6",
-                    Set.of("api.github.com"), 5 * 1024 * 1024);
-            forkReleases.put(source, new JSONArray(new String(data, StandardCharsets.UTF_8)));
+            JSONArray all = new JSONArray();
+            String endpoint = "https://api.github.com/repos/" + repo + "/releases";
+            for (int page = 1; ; page++) {
+                byte[] data = library.request(endpoint + "?per_page=100&page=" + page,
+                        Set.of("api.github.com"), 5 * 1024 * 1024);
+                JSONArray releases = new JSONArray(new String(data, StandardCharsets.UTF_8));
+                for (int i = 0; i < releases.length(); i++) all.put(releases.getJSONObject(i));
+                if (releases.length() < 100) break;
+            }
+            forkReleases.put(source, all);
             forkFetchedAt.put(source, SystemClock.elapsedRealtime());
         }
         JSONArray feed = forkReleases.get(source);
@@ -179,11 +213,7 @@ final class MeshCoreCatalogue {
                 if (!tag.matches("repeater-v[0-9]+\\.[0-9]+\\.[0-9]+-savemesh\\.[0-9]+")) continue;
                 appendSaveAssets(result, release, tag, board, targets);
             } else if (tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+")) {
-                String name = "solo-" + tag + "-WioTrackerL1.uf2";
-                var asset = FirmwareLibrary.uniqueAsset(release, Pattern.compile(Pattern.quote(name)));
-                if (asset != null && asset.optString("digest").matches("sha256:[0-9a-f]{64}")) {
-                    result.put(option(tag, tag, name, false));
-                }
+                appendSoloAssets(result, release, tag, board, role);
             }
         }
         return result;
@@ -221,22 +251,48 @@ final class MeshCoreCatalogue {
             if (!safeName(name) || !asset.optString("digest").matches("sha256:[0-9a-f]{64}")) continue;
             var parts = filename.matcher(name);
             boolean firmware = parts.matches();
-            if (!board.isEmpty() && (!firmware || targets.stream().noneMatch(p -> p.matcher(parts.group(1)).matches()))) continue;
             if (!firmware && !name.equals("SHA256SUMS.txt")) continue;
             String kind = !firmware ? "checksums" : parts.group(2) == null ? parts.group(3) : "merged";
-            boolean m5 = board.equals(M5) && kind.equals("bin") &&
+            boolean target = firmware && !board.isEmpty() && targets.stream().anyMatch(p -> p.matcher(parts.group(1)).matches());
+            boolean m5 = target && board.equals(M5) && kind.equals("bin") &&
                     parts.group(1).equalsIgnoreCase("ThinkNode_M5_repeater");
-            boolean validatedApp = kind.equals("uf2") && uf2Start(board) != 0 ||
-                    kind.equals("bin") && (board.equals(T_DECK) || board.equals(XIAO));
-            result.put(option(tag, version, name, m5)
-                    .put("types", new JSONArray().put(m5 ? "flash-update" : kind))
-                    .put("exportOnly", !m5 && !validatedApp));
+            boolean validatedApp = target && (kind.equals("uf2") && uf2Start(board) != 0 ||
+                    kind.equals("bin") && (board.equals(T_DECK) || board.equals(XIAO)));
+            boolean exportOnly = !target || !m5 && !validatedApp;
+            result.put(option(tag, version, name, m5, exportOnly)
+                    .put("types", new JSONArray().put(m5 ? "flash-update" : kind)));
+        }
+    }
+
+    private static void appendSoloAssets(JSONArray result, JSONObject release, String tag, String board,
+                                         String role) throws JSONException {
+        var assets = release.getJSONArray("assets");
+        String targetName = "solo-" + tag + "-WioTrackerL1.uf2";
+        for (int i = 0; i < assets.length(); i++) {
+            var asset = assets.getJSONObject(i);
+            String name = asset.optString("name");
+            if (!safeName(name) || !firmwareName(name) ||
+                    !asset.optString("digest").matches("sha256:[0-9a-f]{64}")) continue;
+            boolean target = board.equals(WIO) && role.equals("solo") && name.equals(targetName);
+            result.put(option(tag, tag, name, false, !target));
         }
     }
 
     private static JSONObject option(String tag, String version, String name, boolean m5) throws JSONException {
+        return option(tag, version, name, m5, false);
+    }
+
+    private static JSONObject option(String tag, String version, String name, boolean m5, boolean exportOnly)
+            throws JSONException {
+        String lower = name.toLowerCase(Locale.ROOT);
+        String type = m5 ? "flash-update" : lower.endsWith(".uf2") ? "uf2" : lower.endsWith(".zip") ? "zip" :
+                lower.endsWith(".hex") ? "hex" : "bin";
         return new JSONObject().put("tag", tag).put("version", version).put("name", name)
-                .put("types", new JSONArray().put(m5 ? "flash-update" : name.endsWith(".uf2") ? "uf2" : "bin")).put("appTag", m5 ? tag : "");
+                .put("types", new JSONArray().put(type)).put("appTag", m5 ? tag : "").put("exportOnly", exportOnly);
+    }
+
+    private static boolean firmwareName(String name) {
+        return name.toLowerCase(Locale.ROOT).matches(".+\\.(uf2|bin|zip|hex)");
     }
 
     static boolean safeName(String name) {
