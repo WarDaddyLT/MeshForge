@@ -13,22 +13,34 @@ import org.json.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
+    private static final String DIRECT_UPDATE_BOARD = MeshCoreCatalogue.M5;
     private static final String PERMISSION = "dev.meshforge.fieldflasher.USB_PERMISSION";
     private static final int EXPORT = 1;
     private static final int READ_UF2_INFO = 2;
     private static final int SAVE_APP = 3;
     private static final int PICK_LOCAL_FIRMWARE = 4;
+    private static final int PICK_LIBRARY_FIRMWARE = 5;
     private String localBoard;
     private volatile FirmwareLibrary.Image localImage;
     private ReleaseRepositories repositories;
     private UsbDevice readingBootloader;
     private FirmwareLibrary.Image exportingImage;
     private volatile BootloaderInspection bootloaderInspection;
-    private record BootloaderInspection(UsbDevice device, BootloaderInfo info) {}
+    private record BootloaderInspection(UsbDevice device, BootloaderInfo info, String volumeId) {}
+    private record DfuTransfer(FirmwareSelection selection, FirmwareLibrary.Image image) {}
+    private volatile DfuTransfer pendingDfu;
+    private boolean dfuTouchAttempted;
+    private boolean dfuTouchInProgress;
+    private boolean dfuWaitScheduled;
+    private boolean permissionForDfu;
+    private volatile boolean dfuWriting;
     private final java.util.concurrent.ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ByteArrayOutputStream incoming = new ByteArrayOutputStream(32768);
     private WebView view;
@@ -42,14 +54,27 @@ public final class MainActivity extends Activity {
     private volatile String readError;
     private volatile FirmwareLibrary.Image staged;
     private volatile boolean approved;
+    private volatile UsbDevice approvedDevice;
     private record Inspection(UsbDevice device, MeshCoreIdentity.Result identity) {}
     private volatile Inspection inspection;
     private int pendingPermission = -1;
+    private record FlashReview(UsbDevice device, boolean probeOnly, FirmwareLibrary.Image image) {}
+    private record FirmwareSelection(int deviceId, String board, String source, String role, String tag, String name,
+                                     String sha, String assetId) {}
+    private FlashReview pendingFlashPermission;
+    private int usbScan;
+    private boolean permissionForRepeater;
+    private volatile boolean repeaterBusy;
+    private volatile RepeaterSession repeaterSession;
+    private record RepeaterSession(UsbDevice device, RepeaterCli.Snapshot snapshot) {}
+    private record RepeaterChanges(Map<RepeaterCli.Field, String> fields, Map<String, Integer> acl,
+                                   RepeaterTables.Regions regions) {}
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class);
             String action = intent.getAction();
+            if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) beginUsbTrace(device, "USB_DEVICE_ATTACHED");
             describe("event=" + action, device);
             if (PERMISSION.equals(action)) {
                 if (device == null || device.getDeviceId() != pendingPermission) {
@@ -60,7 +85,23 @@ public final class MainActivity extends Activity {
                         usb.hasPermission(device);
                 pendingPermission = -1;
                 log.add("permission", "Completed granted=" + granted);
-                if (granted) inspect(device);
+                var flash = pendingFlashPermission;
+                pendingFlashPermission = null;
+                if (flash != null) {
+                    if (granted && flash.device().equals(device)) prepareFlash(flash);
+                    else flashFailed("USB permission was declined or the selected device changed.");
+                } else if (permissionForDfu) {
+                    permissionForDfu = false;
+                    if (granted && pendingDfu != null) {
+                        if (isMassStorage(device)) beginDfuWrite(device);
+                        else requestDfuMode(device);
+                    }
+                    else failDfu("USB access was declined. MeshForge could not request DFU mode.");
+                } else if (permissionForRepeater) {
+                    permissionForRepeater = false;
+                    if (granted) readRepeater(device);
+                    else finishRepeater("USB access was declined. Tap Read settings to try again.");
+                } else if (granted) inspect(device);
                 else publishDevice("USB permission was declined.");
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
                 var inspected = inspection;
@@ -68,14 +109,33 @@ public final class MainActivity extends Activity {
                 var bootloader = bootloaderInspection;
                 if (bootloader != null && bootloader.device().equals(device)) bootloaderInspection = null;
                 if (device != null && device.equals(readingBootloader)) readingBootloader = null;
-                if (device != null && device.getDeviceId() == pendingPermission) pendingPermission = -1;
+                if (device != null && device.getDeviceId() == pendingPermission) {
+                    pendingPermission = -1;
+                    if (pendingFlashPermission != null) {
+                        pendingFlashPermission = null;
+                        flashFailed("The selected USB device disconnected.");
+                    }
+                    if (permissionForRepeater) {
+                        permissionForRepeater = false;
+                        finishRepeater("The repeater disconnected.");
+                    }
+                    if (permissionForDfu) {
+                        permissionForDfu = false;
+                        failDfu("The radio disconnected before MeshForge could request DFU mode.");
+                    }
+                }
+                var session = repeaterSession;
+                if (session != null && session.device().equals(device)) repeaterSession = null;
+                if (device != null && device.equals(approvedDevice)) approvedDevice = null;
                 if (device != null && device.equals(activeDevice)) {
                     closePort("active device detached");
                     js("window.onDetach()");
                 }
                 publishDevice(null);
+                continueDfuTransfer();
             } else {
                 publishDevice(null);
+                if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) continueDfuTransfer();
             }
         }
     };
@@ -113,7 +173,8 @@ public final class MainActivity extends Activity {
         frame.addView(view, new android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         frame.setOnApplyWindowInsetsListener((element, insets) -> {
-            var edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            var edges = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() |
+                    WindowInsets.Type.ime());
             element.setPadding(edges.left, 0, edges.right, edges.bottom);
             float top = edges.top / getResources().getDisplayMetrics().density;
             if (top != systemTopInset) {
@@ -159,10 +220,30 @@ public final class MainActivity extends Activity {
         handleIntent(intent);
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        publishDevice(null);
+    }
+
     private void handleIntent(Intent intent) {
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) {
-            describe("activity attachment", intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class));
+            UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class);
+            beginUsbTrace(device, "activity attachment");
+            describe("activity attachment", device);
             publishDevice(null);
+        }
+    }
+
+    private void beginUsbTrace(UsbDevice device, String trigger) {
+        if (device == null || log == null) return;
+        String key = String.format(Locale.US, "%04x:%04x:%s", device.getVendorId(), device.getProductId(),
+                device.getProductName() == null ? "" : device.getProductName());
+        String details = String.format(Locale.US, "deviceId=%d vid=%04x pid=%04x product=%s",
+                device.getDeviceId(), device.getVendorId(), device.getProductId(), device.getProductName());
+        if (log.hasUsbSession() && pendingDfu != null) {
+            log.add("trace", "USB re-enumeration during active operation trigger=" + trigger + " " + details);
+        } else {
+            log.beginUsbSession(trigger, key, details);
         }
     }
 
@@ -186,6 +267,7 @@ public final class MainActivity extends Activity {
         log.add("usb", event + " deviceCount=" + usb.getDeviceList().size());
         if (device == null) {
             if (event.equals("initial inventory")) for (var connected : usb.getDeviceList().values()) {
+                beginUsbTrace(connected, "initial inventory");
                 describe("enumerated", connected);
             }
             return;
@@ -205,20 +287,20 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private UsbDevice candidate() {
-        UsbDevice only = null;
-        var inspected = inspection;
-        for (UsbDevice device : usb.getDeviceList().values()) {
-            if (!isM5Bridge(device)) continue;
-            if (only != null) return null;
-            only = device;
+    private void scanUsb(int scan, int attempt) {
+        if (scan != usbScan || isDestroyed()) return;
+        int count = usb.getDeviceList().size();
+        log.add("usb.scan", "attempt=" + (attempt + 1) + " deviceCount=" + count);
+        if (count == 0 && attempt < 2) {
+            if (attempt == 0) publishDevice("Checking for USB devices…");
+            view.postDelayed(() -> scanUsb(scan, attempt + 1), 350);
+            return;
         }
-        if (only != null) {
-            var reported = inspected != null && only.equals(inspected.device()) ? inspected.identity() : null;
-            String board = boardOf(only, reported);
-            if (!board.isEmpty() && !board.equals("Elecrow ThinkNode M5")) return null;
-        }
-        return only;
+        describe("initial inventory", null);
+        boolean hostFeature = getPackageManager().hasSystemFeature(PackageManager.FEATURE_USB_HOST);
+        publishDevice(count > 0 ? "USB devices detected: " + count + "." : hostFeature ?
+                "Android sees no USB devices. Connect the radio with a USB data cable or OTG adapter and try again." :
+                "Android reports that this phone lacks USB host support.");
     }
 
     private static boolean isM5Bridge(UsbDevice device) {
@@ -233,7 +315,7 @@ public final class MainActivity extends Activity {
     }
 
     private String deviceType(UsbDevice device) {
-        if (isM5Bridge(device)) return "WCH USB serial (M5-compatible bridge)";
+        if (isM5Bridge(device)) return "WCH USB serial";
         if (device.getVendorId() == 0x303a && device.getProductId() == 0x1001) return "Espressif native USB Serial/JTAG";
         UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
         if (driver instanceof Ch34xSerialDriver) return "WCH USB serial";
@@ -255,7 +337,6 @@ public final class MainActivity extends Activity {
     private void publishDevice(String status) {
         var devices = new ArrayList<>(usb.getDeviceList().values());
         devices.sort(Comparator.comparingInt(UsbDevice::getDeviceId));
-        UsbDevice m5Bridge = candidate();
         var inspected = inspection;
         JSONArray inventory = new JSONArray();
         for (UsbDevice device : devices) {
@@ -290,16 +371,19 @@ public final class MainActivity extends Activity {
                         .put("board", boardOf(device, identity))
                         .put("reportedModel", identity != null ? identity.model() : "")
                         .put("reportedVersion", identity != null ? identity.version() : "")
-                        .put("m5", device.equals(m5Bridge))
+                        .put("reportedRole", identity != null ? identity.role() : "")
+                        .put("flashSerial", flashDriver(device) != null)
+                        .put("serial", serialDriver(device) != null && !isMassStorage(device))
                         .put("storage", isMassStorage(device))
                         .put("bootloader", info == null ? JSONObject.NULL : new JSONObject()
                                 .put("version", info.version()).put("id", info.boardId()).put("status", info.status())
+                                .put("family", info.fixFamily())
                                 .put("boards", checkedBoards).put("fixes", checkedFixes)));
             } catch (JSONException error) {
                 failure("usb.inventory", error);
             }
         }
-        js("window.onUsb(" + inventory + "," + JSONObject.quote(status == null ? "" : status) + ")");
+        js("window.onUsb?.(" + inventory + "," + JSONObject.quote(status == null ? "" : status) + ")");
     }
 
     private String boardOf(UsbDevice device, MeshCoreIdentity.Result identity) {
@@ -311,7 +395,7 @@ public final class MainActivity extends Activity {
 
     private void connectUsb(int id) {
         UsbDevice device = findDevice(id);
-        if (device == null || approved) {
+        if (device == null || approved || repeaterBusy) {
             publishDevice("The USB device is unavailable.");
             return;
         }
@@ -319,8 +403,13 @@ public final class MainActivity extends Activity {
             inspect(device);
             return;
         }
+        requestUsbPermission(device, false);
+    }
+
+    private void requestUsbPermission(UsbDevice device, boolean forRepeater) {
         if (pendingPermission >= 0) return;
-        pendingPermission = id;
+        pendingPermission = device.getDeviceId();
+        permissionForRepeater = forRepeater;
         var intent = new Intent(PERMISSION).setPackage(getPackageName());
         var reply = PendingIntent.getBroadcast(this, device.getDeviceId(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
@@ -329,8 +418,16 @@ public final class MainActivity extends Activity {
             usb.requestPermission(device, reply);
         } catch (Exception error) {
             pendingPermission = -1;
+            permissionForRepeater = false;
             failure("permission", error);
-            publishDevice("Could not request USB access.");
+            if (pendingFlashPermission != null) {
+                pendingFlashPermission = null;
+                flashFailed("Could not request USB access for flashing.");
+            } else if (permissionForDfu) {
+                permissionForDfu = false;
+                failDfu("Could not request USB access to enter DFU mode.");
+            } else if (forRepeater) finishRepeater("Could not request USB access.");
+            else publishDevice("Could not request USB access.");
         }
     }
 
@@ -354,9 +451,9 @@ public final class MainActivity extends Activity {
                 if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("The USB device detached.");
                 inspection = new Inspection(device, identity);
                 describe("connected descriptors", device);
-                publishDevice(identity != null ? "USB probe read the MeshCore device information." :
+                publishDevice(identity != null ? "MeshCore device information read." :
                         isMassStorage(device) ? "USB storage detected. Read INFO_UF2.TXT to check the bootloader." :
-                        "USB descriptors read. The device did not report a MeshCore identity.");
+                        "USB device detected. Select the board manually if you know the exact model.");
             } catch (Exception error) {
                 failure("usb.connect", error);
                 publishDevice(error.getMessage());
@@ -364,17 +461,30 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private MeshCoreIdentity.Result queryIdentity(UsbDevice device) {
-        UsbSerialDriver driver = isM5Bridge(device) ? new Ch34xSerialDriver(device) :
+    private static UsbSerialDriver serialDriver(UsbDevice device) {
+        return isM5Bridge(device) ? new Ch34xSerialDriver(device) :
                 UsbSerialProber.getDefaultProber().probeDevice(device);
-        if (driver == null || driver.getPorts().isEmpty()) return null;
+    }
+
+    private static UsbSerialDriver flashDriver(UsbDevice device) {
+        if (device == null || isMassStorage(device)) return null;
+        UsbSerialDriver driver = serialDriver(device);
+        if (driver == null || driver.getPorts().size() != 1) return null;
+        boolean nativeEsp = device.getVendorId() == 0x303a && device.getProductId() == 0x1001;
+        return nativeEsp || driver instanceof Ch34xSerialDriver || driver instanceof Cp21xxSerialDriver ||
+                driver instanceof FtdiSerialDriver ? driver : null;
+    }
+
+    private MeshCoreIdentity.Result queryIdentity(UsbDevice device) {
+        UsbSerialDriver driver = serialDriver(device);
+        if (driver == null || driver.getPorts().size() != 1) return null;
         UsbDeviceConnection connection = usb.openDevice(device);
         if (connection == null) return null;
         UsbSerialPort serial = driver.getPorts().get(0);
         try {
             serial.open(connection);
             serial.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            if (device.getVendorId() == 0x303a && device.getProductId() == 0x1001) serial.setDTR(true);
+            if (serial instanceof CdcAcmSerialDriver.CdcAcmSerialPort) serial.setDTR(true);
             return MeshCoreIdentity.query(serial, log);
         } catch (Exception error) {
             failure("meshcore.query", error);
@@ -386,14 +496,16 @@ public final class MainActivity extends Activity {
 
     private synchronized String openPort(int id) throws Exception {
         if (!approved || port != null) throw new IOException("No confirmed flash session, or port already open");
-        UsbDevice device = candidate();
-        if (device == null || device.getDeviceId() != id || !usb.hasPermission(device)) {
+        UsbDevice device = findDevice(id);
+        if (device == null || !device.equals(approvedDevice) || !usb.hasPermission(device)) {
             throw new IOException("The approved radio is disconnected or permission changed");
         }
-        log.add("serial", "Opening Ch34xSerialDriver with explicit WCH 1a86:7522 mapping id=" + id);
+        UsbSerialDriver driver = flashDriver(device);
+        if (driver == null) throw new IOException("The selected USB connection does not support ESP flashing.");
+        log.add("serial", "Opening " + driver.getClass().getSimpleName() + " id=" + id);
         var connection = usb.openDevice(device);
         if (connection == null) throw new IOException("Android openDevice returned null");
-        UsbSerialPort serial = new Ch34xSerialDriver(device).getPorts().get(0);
+        UsbSerialPort serial = driver.getPorts().get(0);
         try {
             serial.open(connection);
             serial.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
@@ -441,50 +553,780 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void showConfirmation(int id, boolean probeOnly, String source, String role) {
-        UsbDevice device = candidate();
-        if (device == null || device.getDeviceId() != id || !usb.hasPermission(device) || approved || library == null) {
-            publishDevice("Grant permission and connect only the M5.");
-            js("window.onComplete(false,'The selected USB device is unavailable.')");
+    private void beginReadRepeater(int id) {
+        UsbDevice device = findDevice(id);
+        if (repeaterBusy) return;
+        repeaterSession = null;
+        if (approved || pendingPermission >= 0 || device == null || isMassStorage(device) ||
+                serialDriver(device) == null) {
+            finishRepeater("Select an available USB serial device and try again.");
             return;
         }
-        js("window.onPreparing()");
+        repeaterBusy = true;
+        if (usb.hasPermission(device)) readRepeater(device);
+        else requestUsbPermission(device, true);
+    }
+
+    private void readRepeater(UsbDevice device) {
+        js("window.onRepeaterReading()");
         worker.execute(() -> {
             try {
-                FirmwareLibrary.Image image = probeOnly ? null : library.load();
-                JSONObject plan = probeOnly ? library.layoutDetails().put("tag", "Layout probe") : image.details();
-                String tag = plan.getString("tag");
-                String imageSource = plan.optString("source");
-                boolean save = imageSource.equals("save");
-                if (!probeOnly && (!source.equals(save ? "save" : "official") ||
-                        !role.equals(save ? "repeater" : "companionBle"))) {
-                    throw new IOException("Download an M5 image for the selected source and role first.");
+                var session = withRepeater(device, RepeaterCli::read);
+                publishRepeater(new RepeaterSession(device, session), "Settings read from the radio.");
+            } catch (Exception error) {
+                log.add("repeater.read", "Failed type=" + error.getClass().getSimpleName());
+                finishRepeater(repeaterError(error));
+            }
+        });
+    }
+
+    private void confirmRepeater(int id, String input) {
+        if (repeaterBusy) return;
+        var session = repeaterSession;
+        if (approved || session == null || session.device().getDeviceId() != id || !repeaterAttached(session.device())) {
+            finishRepeater("Read settings from the selected radio before saving.");
+            return;
+        }
+        var changes = new LinkedHashMap<RepeaterCli.Field, String>();
+        Map<String, Integer> acl = null;
+        RepeaterTables.Regions regions = null;
+        try {
+            if (input.length() > 30000) throw new IOException("The settings are too large.");
+            var values = new JSONObject(input);
+            for (var field : RepeaterCli.Field.values()) {
+                if (!values.has(field.key) || !session.snapshot().settings().containsKey(field)) continue;
+                String value = field.validate(values.getString(field.key));
+                if (!value.equals(session.snapshot().settings().get(field))) changes.put(field, value);
+            }
+            if (values.has("acl")) {
+                var edited = RepeaterTables.aclInput(values.getJSONArray("acl"), session.snapshot().acl());
+                if (!edited.equals(session.snapshot().acl())) acl = edited;
+            }
+            if (values.has("regions")) {
+                var edited = RepeaterTables.regionInput(values.getJSONObject("regions"), session.snapshot().regions());
+                if (!edited.equals(session.snapshot().regions())) regions = edited;
+            }
+            var current = session.snapshot().settings();
+            String name = changes.getOrDefault(RepeaterCli.Field.NAME, current.get(RepeaterCli.Field.NAME));
+            String lat = changes.getOrDefault(RepeaterCli.Field.LAT, current.getOrDefault(RepeaterCli.Field.LAT, "0"));
+            String lon = changes.getOrDefault(RepeaterCli.Field.LON, current.getOrDefault(RepeaterCli.Field.LON, "0"));
+            if ((changes.containsKey(RepeaterCli.Field.NAME) || changes.containsKey(RepeaterCli.Field.LAT) ||
+                    changes.containsKey(RepeaterCli.Field.LON)) && (!lat.equals("0") || !lon.equals("0")) &&
+                    name.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 24) {
+                throw new IOException("Use a node name of up to 24 UTF-8 bytes when sharing coordinates.");
+            }
+        } catch (IOException | JSONException error) {
+            publishRepeater(session, repeaterError(error), true);
+            return;
+        }
+        if (changes.isEmpty() && acl == null && regions == null) {
+            publishRepeater(session, "There are no changes to save.", true);
+            return;
+        }
+        repeaterBusy = true;
+        var labels = new ArrayList<String>();
+        changes.keySet().forEach(field -> labels.add(field.label));
+        if (acl != null) labels.add("Access control list");
+        if (regions != null) labels.add("Region settings");
+        String message = "Save these settings to the connected radio?\n\n" + String.join("\n", labels);
+        if (changes.containsKey(RepeaterCli.Field.RADIO)) message += "\n\nRestart the radio to apply LoRa changes.";
+        var plan = new RepeaterChanges(changes, acl, regions);
+        new AlertDialog.Builder(this)
+                .setTitle("Save radio settings")
+                .setMessage(message)
+                .setNegativeButton("Cancel", (dialog, button) -> publishRepeater(session, "Save canceled.", true))
+                .setOnCancelListener(dialog -> publishRepeater(session, "Save canceled.", true))
+                .setPositiveButton("Save", (dialog, button) -> saveRepeater(session, plan))
+                .show();
+    }
+
+    private void saveRepeater(RepeaterSession session, RepeaterChanges plan) {
+        js("window.onRepeaterSaving()");
+        worker.execute(() -> {
+            var fields = plan.fields();
+            int total = fields.size() + (plan.regions() == null ? 0 : 1) + (plan.acl() == null ? 0 : 1);
+            var verified = new ArrayList<String>();
+            boolean[] attemptedWrite = {false};
+            try {
+                var updated = withRepeater(session.device(), cli -> {
+                    var current = cli.read();
+                    if (!current.sameConfiguration(session.snapshot())) {
+                        throw new IOException("The radio or its settings changed. Read settings and review them again.");
+                    }
+                    for (var change : fields.entrySet()) {
+                        if (!repeaterAttached(session.device())) throw new IOException("The radio disconnected.");
+                        attemptedWrite[0] = true;
+                        cli.write(change.getKey(), change.getValue());
+                        verified.add(change.getKey().label);
+                    }
+                    if (plan.regions() != null) {
+                        if (!repeaterAttached(session.device())) throw new IOException("The radio disconnected.");
+                        attemptedWrite[0] = true;
+                        RepeaterTables.writeRegions(cli, current.regions(), plan.regions());
+                        verified.add("Regions");
+                    }
+                    if (plan.acl() != null) {
+                        if (!repeaterAttached(session.device())) throw new IOException("The radio disconnected.");
+                        attemptedWrite[0] = true;
+                        RepeaterTables.writeAcl(cli, current.acl(), plan.acl());
+                        verified.add("Access control");
+                    }
+                    return cli.read();
+                });
+                log.add("repeater.save", "Verified fields=" + verified.size());
+                publishRepeater(new RepeaterSession(session.device(), updated),
+                        "Saved and verified " + verified.size() + " setting(s)." +
+                        (fields.containsKey(RepeaterCli.Field.RADIO) ? " Restart the radio to apply LoRa changes." : ""));
+            } catch (Exception error) {
+                log.add("repeater.save", "Stopped type=" + error.getClass().getSimpleName() +
+                        " attemptedWrite=" + attemptedWrite[0] + " verifiedFields=" + verified.size());
+                String status = repeaterError(error);
+                if (attemptedWrite[0]) status += " Verified " + verified.size() + " of " + total +
+                        " changes. Read settings again to check the current values.";
+                finishRepeater(status);
+            }
+        });
+    }
+
+    private void showRadioPrivateKey(int id) {
+        var session = repeaterSession;
+        if (repeaterBusy || approved || session == null || session.device().getDeviceId() != id) return;
+        repeaterBusy = true;
+        worker.execute(() -> {
+            String key = null;
+            try {
+                key = withRepeater(session.device(), cli -> {
+                    String observed = cli.setting("public.key");
+                    if (!session.snapshot().key().equalsIgnoreCase(observed)) throw new IOException("The radio changed.");
+                    String value = cli.setting("prv.key");
+                    if (value == null || !value.matches("[a-fA-F0-9]{128}")) throw new IOException("The radio did not return a private key.");
+                    return value;
+                });
+            } catch (Exception error) {
+                log.add("repeater.identity", "Private key read failed type=" + error.getClass().getSimpleName());
+            }
+            String privateKey = key;
+            runOnUiThread(() -> {
+                if (privateKey == null || !repeaterAttached(session.device())) {
+                    publishRepeater(session, "The private key is unavailable for this radio.", true);
+                    return;
                 }
-                String change = save ? "This installs SaveMeshcore Repeater. Existing settings and identity migration are unverified. " :
-                        "This installs the MeshCore BLE companion. ";
-                view.post(() -> new AlertDialog.Builder(this)
-                        .setTitle(probeOnly ? "Probe M5 bootloader" : "Confirm M5 app update")
-                        .setMessage(probeOnly ? "The app will reset the M5 into its bootloader, read its chip and layout, then reset it again." :
-                                "Confirm that the target is your ThinkNode M5. " + change + tag + ".")
-                        .setNegativeButton("Cancel", (dialog, button) -> js("window.onComplete(false,'Operation canceled.')"))
-                        .setOnCancelListener(dialog -> js("window.onComplete(false,'Operation canceled.')"))
-                        .setPositiveButton(probeOnly ? "Probe" : "Update M5", (dialog, button) -> {
-                            if (candidate() == null || !device.equals(candidate()) || !usb.hasPermission(device)) {
-                                js("window.onComplete(false,'The attached device changed.')");
-                                return;
-                            }
-                            approved = true;
-                            staged = image;
-                            log.add("plan", "User confirmed probeOnly=" + probeOnly + " deviceId=" + id + " tag=" + tag +
-                                    " address=0x10000 sha256=" + plan.optString("sha256"));
-                            js("window.startFlash(" + id + "," + plan + "," + probeOnly + ")");
-                        }).show());
+                AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Radio private key")
+                        .setMessage(privateKey).setPositiveButton("Close", null)
+                        .setOnDismissListener(ignored -> publishRepeater(session, "", true)).create();
+                if (dialog.getWindow() != null) dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                dialog.show();
+            });
+        });
+    }
+
+    private interface RepeaterOperation<T> { T run(RepeaterCli cli) throws IOException; }
+
+    private <T> T withRepeater(UsbDevice device, RepeaterOperation<T> operation) throws IOException {
+        if (approved || !repeaterAttached(device)) throw new IOException("The selected USB device is unavailable.");
+        UsbSerialDriver driver = serialDriver(device);
+        if (driver == null || driver.getPorts().size() != 1) {
+            throw new IOException("The repeater needs one supported USB serial port.");
+        }
+        UsbDeviceConnection connection = usb.openDevice(device);
+        if (connection == null) throw new IOException("Android could not open the selected USB device.");
+        UsbSerialPort serial = driver.getPorts().get(0);
+        try {
+            serial.open(connection);
+            serial.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            if (serial instanceof CdcAcmSerialDriver.CdcAcmSerialPort) {
+                serial.setDTR(true);
+                log.add("repeater.serial", "CDC DTR asserted");
+            }
+            log.add("repeater.serial", "Opened driver=" + driver.getClass().getSimpleName() + " baud=115200 8N1");
+            return operation.run(new RepeaterCli(serial, log));
+        } finally {
+            try { serial.close(); } catch (IOException error) { connection.close(); }
+            log.add("repeater.serial", "Closed");
+        }
+    }
+
+    private boolean repeaterAttached(UsbDevice device) {
+        return !isDestroyed() && device.equals(findDevice(device.getDeviceId())) && usb.hasPermission(device);
+    }
+
+    private static String repeaterError(Exception error) {
+        return error instanceof IOException && error.getMessage() != null ?
+                error.getMessage() : "Could not communicate with the radio over USB.";
+    }
+
+    private void finishRepeater(String message) { publishRepeater(null, message); }
+
+    private void publishRepeater(RepeaterSession session, String message) {
+        publishRepeater(session, message, false);
+    }
+
+    private void publishRepeater(RepeaterSession session, String message, boolean keepEdits) {
+        runOnUiThread(() -> {
+            repeaterBusy = false;
+            repeaterSession = session != null && repeaterAttached(session.device()) ? session : null;
+            JSONObject result = null;
+            if (repeaterSession != null) {
+                try {
+                    var settings = new JSONObject();
+                    var snapshot = session.snapshot();
+                    for (var field : snapshot.settings().entrySet()) {
+                        if (field.getKey() == RepeaterCli.Field.GUEST) {
+                            settings.put(field.getKey().key, "");
+                            continue;
+                        }
+                        settings.put(field.getKey().key, field.getValue());
+                    }
+                    result = new JSONObject().put("device", session.device().getDeviceId())
+                            .put("version", snapshot.version()).put("settings", settings)
+                            .put("role", snapshot.role()).put("publicKey", snapshot.key())
+                            .put("clock", snapshot.clock()).put("guestSet", !snapshot.settings().getOrDefault(
+                                    RepeaterCli.Field.GUEST, "").isEmpty());
+                    if (snapshot.acl() != null) result.put("acl", new JSONObject(snapshot.acl()));
+                    if (snapshot.regions() != null) result.put("regions", snapshot.regions().json());
+                } catch (JSONException error) {
+                    repeaterSession = null;
+                }
+            }
+            js("window.onRepeater(" + result + "," + JSONObject.quote(message) + "," + keepEdits + ")");
+        });
+    }
+
+    private void flashFailed(String message) {
+        log.add("flash.outcome", "Failed before or during flash: " + message);
+        log.endUsbSession(false, message);
+        js("window.onComplete(false," + JSONObject.quote(message) + ")");
+    }
+
+    private void beginFlashRequest(String json) {
+        log.add("flash.request", "Received firmware flash request jsonLength=" + (json == null ? 0 : json.length()));
+        try {
+            if (json == null || json.length() > 4096) throw new IOException("Invalid flash selection.");
+            var values = new JSONObject(json);
+            UsbDevice device = findDevice(values.getInt("device"));
+            if (device == null || approved || repeaterBusy || library == null) {
+                flashFailed("The selected USB device is unavailable.");
+                return;
+            }
+            beginUsbTrace(device, "flash request");
+            var selection = new FirmwareSelection(values.optInt("device", -1), values.getString("board"), values.getString("source"),
+                    values.optString("role"), values.optString("tag"), values.getString("name"),
+                    values.optString("sha"), values.optString("assetId"));
+            log.add("flash.selection", "deviceId=" + selection.deviceId() + " board=" + selection.board() +
+                    " source=" + selection.source() + " role=" + selection.role() + " tag=" + selection.tag() +
+                    " name=" + selection.name() + " sha256=" + selection.sha());
+            worker.execute(() -> {
+                try {
+                    var image = resolveFlashImage(selection);
+                    log.add("flash.prepare", "Resolved direct image bytes=" + image.bytes().length +
+                            " sha256=" + image.details().optString("sha256"));
+                    view.post(() -> beginFlashReview(new FlashReview(device, false, image)));
+                } catch (Exception error) {
+                    failure("flash.prepare", error);
+                    flashFailed(error.getMessage());
+                }
+            });
+        } catch (IOException | JSONException error) {
+            flashFailed(error.getMessage());
+        }
+    }
+
+    private void beginDfuTransfer(String json) {
+        log.add("dfu.request", "Received UF2 install request jsonLength=" + (json == null ? 0 : json.length()));
+        try {
+            if (json == null || json.length() > 4096 || library == null || catalogue == null) {
+                throw new IOException("Invalid DFU selection.");
+            }
+            var values = new JSONObject(json);
+            var selection = new FirmwareSelection(values.optInt("device", -1), values.getString("board"), values.getString("source"),
+                    values.optString("role"), values.optString("tag"), values.getString("name"),
+                    values.optString("sha"), values.optString("assetId"));
+            if (!catalogue.isNrf(selection.board()) || MeshCoreCatalogue.uf2Start(selection.board()) == 0 ||
+                    !selection.name().toLowerCase(Locale.ROOT).endsWith(".uf2") ||
+                    !(Set.of("official", "save", "solo", "local").contains(selection.source()) ||
+                            selection.source().startsWith("https://"))) {
+                throw new IOException("The selected board and file require a supported UF2 application write method.");
+            }
+            if (pendingDfu != null) throw new IOException("A UF2 update is already waiting for the radio.");
+            log.add("dfu.selection", "deviceId=" + selection.deviceId() + " board=" + selection.board() +
+                    " source=" + selection.source() + " role=" + selection.role() + " tag=" + selection.tag() +
+                    " name=" + selection.name() + " sha256=" + selection.sha());
+            worker.execute(() -> {
+                try {
+                    FirmwareLibrary.Image image = resolveDfuImage(selection);
+                    log.add("dfu.prepare", "Verified UF2 bytes=" + image.bytes().length +
+                            " sha256=" + image.details().optString("sha256"));
+                    view.post(() -> confirmDfuTransfer(new DfuTransfer(selection, image)));
+                } catch (Exception error) {
+                    failure("dfu.prepare", error);
+                    log.endUsbSession(false, error.getMessage());
+                    js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
+                }
+            });
+        } catch (Exception error) {
+            failure("dfu.prepare", error);
+            log.endUsbSession(false, error.getMessage());
+            js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
+        }
+    }
+
+    private void confirmDfuTransfer(DfuTransfer transfer) {
+        if (isFinishing() || isDestroyed()) return;
+        var selection = transfer.selection();
+        js("window.onDfuTransfer('Firmware verified. Waiting for confirmation…',false)");
+        new AlertDialog.Builder(this)
+                .setTitle("Flash firmware")
+                .setMessage(selection.board() + "\n" + selection.name() +
+                        "\n\nMeshForge will check the bootloader identity before writing.")
+                .setNegativeButton("Cancel", (dialog, which) -> cancelDfuConfirmation())
+                .setOnCancelListener(dialog -> cancelDfuConfirmation())
+                .setPositiveButton("Flash firmware", (dialog, which) -> {
+                    pendingDfu = transfer;
+                    dfuTouchAttempted = false;
+                    dfuTouchInProgress = false;
+                    dfuWaitScheduled = false;
+                    continueDfuTransfer();
+                })
+                .show();
+    }
+
+    private void cancelDfuConfirmation() {
+        log.endUsbSession(false, "UF2 update canceled before writing");
+        js("window.onFlashCancelled()");
+    }
+
+    private void continueDfuTransfer() {
+        DfuTransfer transfer = pendingDfu;
+        if (transfer == null || dfuWriting || dfuTouchInProgress || permissionForDfu || isDestroyed()) {
+            log.add("dfu.state", "continue skipped pending=" + (transfer != null) + " writing=" + dfuWriting +
+                    " touchInProgress=" + dfuTouchInProgress + " permissionPending=" + permissionForDfu +
+                    " destroyed=" + isDestroyed());
+            return;
+        }
+        long driveCount = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage).count();
+        log.add("dfu.discovery", "Mass-storage device count=" + driveCount + " totalUsbDevices=" + usb.getDeviceList().size() +
+                " touchAttempted=" + dfuTouchAttempted);
+        if (driveCount > 1) {
+            failDfu("Disconnect other USB storage devices so MeshForge can identify the radio bootloader.");
+            return;
+        }
+        if (driveCount == 0) {
+            if (dfuTouchAttempted) {
+                waitForDfuDrive(transfer);
+                return;
+            }
+            UsbDevice device;
+            try {
+                device = findDfuSerialDevice(transfer.selection());
+            } catch (IOException error) {
+                failDfu(error.getMessage());
+                return;
+            }
+            if (device == null) {
+                log.add("dfu.discovery", "No eligible USB serial device yet");
+                waitForDfuDrive(transfer);
+                return;
+            }
+            if (!usb.hasPermission(device)) {
+                if (pendingPermission >= 0) {
+                    failDfu("Finish the pending USB permission request, then start the DFU update again.");
+                    return;
+                }
+                permissionForDfu = true;
+                log.add("dfu.permission", "Requesting USB permission before 1200-baud DFU touch deviceId=" +
+                        device.getDeviceId());
+                js("window.onDfuTransfer('Allow USB access so MeshForge can request DFU mode…',false)");
+                requestUsbPermission(device, false);
+                return;
+            }
+            requestDfuMode(device);
+            return;
+        }
+        UsbDevice drive = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage)
+                .findFirst().orElse(null);
+        if (drive == null) {
+            failDfu("The radio's USB bootloader drive disappeared before installation.");
+            return;
+        }
+        if (!usb.hasPermission(drive)) {
+            if (pendingPermission >= 0) {
+                failDfu("Finish the pending USB permission request, then start the DFU update again.");
+                return;
+            }
+            permissionForDfu = true;
+            log.add("dfu.permission", "Requesting USB permission for bootloader drive deviceId=" + drive.getDeviceId());
+            js("window.onDfuTransfer('Allow USB access so MeshForge can write firmware directly to the radio…',false)");
+            requestUsbPermission(drive, false);
+            return;
+        }
+        beginDfuWrite(drive);
+    }
+
+    private void waitForDfuDrive(DfuTransfer transfer) {
+        String instructions = catalogue.dfuEntry(transfer.selection().board());
+        String hint = "Waiting for the radio’s UF2 bootloader drive. " + instructions;
+        js("window.onDfuTransfer(" + JSONObject.quote(hint) + ",false)");
+        if (dfuWaitScheduled) return;
+        dfuWaitScheduled = true;
+        view.postDelayed(() -> {
+            if (pendingDfu == transfer && !dfuWriting && !dfuTouchInProgress && !permissionForDfu) {
+                failDfu("The radio’s UF2 bootloader drive did not appear within one minute. " + instructions);
+            }
+        }, 60_000);
+    }
+
+    private void beginDfuWrite(UsbDevice device) {
+        DfuTransfer transfer = pendingDfu;
+        if (transfer == null || dfuWriting || !isMassStorage(device) ||
+                !usb.hasPermission(device) || !device.equals(findDevice(device.getDeviceId()))) {
+            failDfu("The radio's USB bootloader is no longer available for firmware installation.");
+            return;
+        }
+        dfuWriting = true;
+        log.add("dfu.install", "Starting direct USB UF2 transfer deviceId=" + device.getDeviceId() +
+                " interfaces=" + device.getInterfaceCount());
+        js("window.onDfuTransfer('Verifying the radio bootloader and writing UF2 directly over USB…',false)");
+        worker.execute(() -> writeDfuTransfer(transfer, device));
+    }
+
+    private UsbDevice findDfuSerialDevice(FirmwareSelection selection) throws IOException {
+        log.add("dfu.discovery", "Searching USB serial devices for board=" + selection.board() +
+                " selectedDeviceId=" + selection.deviceId());
+        var serialDevices = new ArrayList<UsbDevice>();
+        var matchingDevices = new ArrayList<UsbDevice>();
+        for (UsbDevice device : usb.getDeviceList().values()) {
+            if (isMassStorage(device)) continue;
+            UsbSerialDriver driver = serialDriver(device);
+            if (driver == null || driver.getPorts().size() != 1) continue;
+            serialDevices.add(device);
+            var inspected = inspection;
+            MeshCoreIdentity.Result identity = inspected != null && inspected.device().equals(device) ? inspected.identity() : null;
+            String detectedBoard = boardOf(device, identity);
+            if (selection.board().equals(detectedBoard)) matchingDevices.add(device);
+        }
+        if (selection.deviceId() >= 0) {
+            UsbDevice selected = findDevice(selection.deviceId());
+            if (selected != null && !serialDevices.contains(selected)) {
+                throw new IOException("The selected USB device does not expose a supported serial interface.");
+            }
+            if (selected == null) return null;
+            return selected;
+        }
+        if (matchingDevices.size() == 1) return matchingDevices.get(0);
+        if (matchingDevices.size() > 1) {
+            throw new IOException("More than one USB serial device matches this board. Disconnect the other radios.");
+        }
+        if (serialDevices.isEmpty()) return null;
+        if (serialDevices.size() > 1) {
+            throw new IOException("MeshForge cannot identify the target radio among multiple USB serial devices. Disconnect the other devices.");
+        }
+        UsbDevice device = serialDevices.get(0);
+        var inspected = inspection;
+        MeshCoreIdentity.Result identity = inspected != null && inspected.device().equals(device) ? inspected.identity() : null;
+        String detectedBoard = boardOf(device, identity);
+        if (!detectedBoard.isEmpty() && !selection.board().equals(detectedBoard)) {
+            throw new IOException("The connected USB radio is " + detectedBoard + ", not " + selection.board() + ".");
+        }
+        return device;
+    }
+
+    private void requestDfuMode(UsbDevice device) {
+        DfuTransfer transfer = pendingDfu;
+        if (transfer == null || dfuTouchAttempted || dfuTouchInProgress) return;
+        if (!device.equals(findDevice(device.getDeviceId())) || !usb.hasPermission(device)) {
+            failDfu("The selected radio disconnected or USB access was lost before DFU entry.");
+            return;
+        }
+        UsbSerialDriver driver = serialDriver(device);
+        if (driver == null || driver.getPorts().size() != 1) {
+            failDfu("The selected radio has no supported USB serial interface. " + catalogue.dfuEntry(transfer.selection().board()));
+            return;
+        }
+        dfuTouchAttempted = true;
+        dfuTouchInProgress = true;
+        log.add("dfu.entry", "Starting 1200-baud touch deviceId=" + device.getDeviceId() +
+                " board=" + transfer.selection().board());
+        js("window.onDfuTransfer('Requesting DFU mode over USB (1200-baud touch)…',false)");
+        worker.execute(() -> {
+            UsbDeviceConnection connection = null;
+            UsbSerialPort serial = driver.getPorts().get(0);
+            try {
+                connection = usb.openDevice(device);
+                if (connection == null) throw new IOException("Android could not open the radio USB connection.");
+                serial.open(connection);
+                boolean hasDtr = serial.getSupportedControlLines().contains(UsbSerialPort.ControlLine.DTR);
+                if (hasDtr) serial.setDTR(true);
+                serial.setParameters(1200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+                log.add("dfu.entry", "Requested USB DFU mode at 1200 baud board=" + transfer.selection().board() +
+                        " deviceId=" + device.getDeviceId());
+                Thread.sleep(100);
+                if (hasDtr) serial.setDTR(false);
+                serial.close();
+                connection.close();
+                connection = null;
+                Thread.sleep(1500);
+                view.post(() -> {
+                    dfuTouchInProgress = false;
+                    continueDfuTransfer();
+                });
+            } catch (Exception error) {
+                try { serial.close(); } catch (Exception closeError) { if (connection != null) connection.close(); }
+                if (connection != null) connection.close();
+                failure("dfu.entry", error);
+                view.post(() -> {
+                    dfuTouchInProgress = false;
+                    continueDfuTransfer();
+                });
+            }
+        });
+    }
+
+    private void failDfu(String message) {
+        log.add("dfu.outcome", "Failed: " + message);
+        pendingDfu = null;
+        dfuTouchInProgress = false;
+        dfuWriting = false;
+        permissionForDfu = false;
+        log.endUsbSession(false, message);
+        js("window.onDfuTransfer(" + JSONObject.quote(message) + ",true,false)");
+    }
+
+    private FirmwareLibrary.Image resolveDfuImage(FirmwareSelection selection) throws Exception {
+        log.add("dfu.resolve", "Locating selected repository asset board=" + selection.board() +
+                " source=" + selection.source() + " tag=" + selection.tag() + " name=" + selection.name());
+        FirmwareLibrary.Image image;
+        if ("local".equals(selection.source())) {
+            image = localImage;
+            if (image == null || !"uf2".equals(image.details().optString("route")) ||
+                    !selection.name().equals(image.details().optString("name")) ||
+                    !selection.board().equals(image.details().optString("board")) ||
+                    !selection.sha().equals(image.details().optString("sha256"))) {
+                throw new IOException("Choose the local UF2 file again for this board.");
+            }
+        } else if (selection.source().startsWith("https://")) {
+            if (!selection.sha().matches("[0-9a-f]{64}")) {
+                throw new IOException("This UF2 release has no published SHA-256.");
+            }
+            var saved = cacheRepositorySelection(selection);
+            image = new FirmwareLibrary.Image(saved.bytes(), new JSONObject()
+                    .put("board", selection.board()).put("name", selection.name()).put("sha256", selection.sha()));
+        } else if (cachedExportMatches(selection)) {
+            log.add("dfu.resolve", "Using verified cached UF2");
+            image = library.loadExport();
+        } else {
+            JSONObject option = findReleaseFile(selection.board(), selection.role(), selection.source(),
+                    selection.tag(), selection.name());
+            if (option.optBoolean("exportOnly")) {
+                throw new IOException("The selected file is not a board-compatible UF2 image.");
+            }
+            log.add("dfu.resolve", "Fetching selected UF2 asset");
+            js("window.onDfuTransfer('Downloading and verifying the board-compatible UF2…')");
+            JSONObject details = library.fetch(selection.source(), selection.board(), selection.role(), option);
+            publishFirmware(details, true);
+            image = library.loadExport();
+        }
+        if (Set.of("official", "save", "solo").contains(selection.source()) && !matchesRelease(selection, image.details())) {
+            throw new IOException("The staged UF2 does not match the selected release.");
+        }
+        FirmwareLibrary.validateUf2(image.bytes(), MeshCoreCatalogue.uf2Start(selection.board()));
+        log.add("dfu.resolve", "UF2 block/address validation passed start=0x" +
+                Integer.toHexString(MeshCoreCatalogue.uf2Start(selection.board())));
+        return image;
+    }
+
+    private FirmwareLibrary.Image resolveFlashImage(FirmwareSelection selection) throws Exception {
+        log.add("flash.resolve", "Resolving board=" + selection.board() + " source=" + selection.source() +
+                " role=" + selection.role() + " tag=" + selection.tag() + " name=" + selection.name());
+        FirmwareLibrary.Image cached = null;
+        try {
+            cached = library.load();
+            log.add("flash.resolve", "Cached direct image bytes=" + cached.bytes().length +
+                    " sha256=" + cached.details().optString("sha256"));
+        } catch (Exception error) {
+            log.add("flash.prepare", "No usable direct-write image in cache type=" + error.getClass().getSimpleName());
+        }
+        if (cached != null && matchesFlashSelection(selection, cached)) {
+            log.add("flash.resolve", "Cached image matches exact selected board/source/role/release");
+            return cached;
+        }
+        if ("local".equals(selection.source())) {
+            throw new IOException("This local file has no verified direct-write plan for the selected board.");
+        }
+        if (selection.source().startsWith("https://")) {
+            cacheRepositorySelection(selection);
+            throw new IOException("Firmware is saved in Library. MeshForge has no USB write method for this board and file combination.");
+        }
+        JSONObject option = findReleaseFile(selection.board(), selection.role(), selection.source(),
+                selection.tag(), selection.name());
+        log.add("flash.resolve", "Selected GitHub asset resolved id=" + option.optString("id") +
+                " size=" + option.optLong("size"));
+        if (option.optString("appTag").isEmpty() && cachedExportMatches(selection)) {
+            throw new IOException("Firmware is available in Library. Use the selected board’s separate update procedure.");
+        }
+        js("window.onFlashDownload()");
+        JSONObject details = library.fetch(selection.source(), selection.board(), selection.role(), option);
+        publishFirmware(details, true);
+        if (!details.getBoolean("direct")) {
+            js("window.onFlashPrepared('Verified firmware saved to Library.')");
+            throw new IOException("Firmware saved to Library. Use the selected board’s separate update procedure.");
+        }
+        // Resolve, validate and capture the exact selected image before USB access is requested.
+        var image = library.load();
+        if (!matchesFlashSelection(selection, image)) throw new IOException("The exact selected image could not be verified.");
+        log.add("flash.resolve", "Downloaded image matches exact selected release");
+        return image;
+    }
+
+    private static boolean matchesFlashSelection(FirmwareSelection selection, FirmwareLibrary.Image image) {
+        JSONObject data = image.details();
+        String board = data.optString("board");
+        String source = data.optString("source");
+        String role = data.optString("role");
+        if (!selection.board().equals(board) || !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) return false;
+        if ("local".equals(selection.source()) || selection.source().startsWith("https://")) {
+            return selection.sha().matches("[0-9a-f]{64}") && selection.sha().equals(data.optString("sha256"));
+        }
+        return matchesRelease(selection, data);
+    }
+
+    private static boolean matchesRelease(FirmwareSelection selection, JSONObject data) {
+        return selection.board().equals(data.optString("board")) && selection.source().equals(data.optString("source")) &&
+                selection.role().equals(data.optString("role")) && selection.tag().equals(data.optString("tag")) &&
+                selection.name().equals(data.optString("name")) &&
+                (selection.sha().isEmpty() || selection.sha().equals(data.optString("sha256")));
+    }
+
+    private boolean cachedExportMatches(FirmwareSelection selection) {
+        try {
+            return matchesRelease(selection, library.loadExport().details());
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private FirmwareLibrary.Image cacheRepositorySelection(FirmwareSelection selection) throws Exception {
+        boolean publishedDigest = selection.sha().matches("[0-9a-f]{64}");
+        if (!selection.sha().isEmpty() && !publishedDigest) throw new IOException("Invalid release SHA-256.");
+        var downloads = repositories.downloads();
+        for (int i = 0; i < downloads.length(); i++) {
+            JSONObject file = downloads.getJSONObject(i);
+            if (!selection.sha().equals(file.optString("sha256"))) continue;
+            try {
+                return repositories.loadLocal(file.getString("name"), selection.sha(), file.getLong("size"), library);
+            } catch (Exception ignored) {
+                break;
+            }
+        }
+        js("window.onFlashDownload()");
+        var file = repositories.download(selection.source(), selection.tag(), Long.parseLong(selection.assetId()),
+                publishedDigest ? "sha256:" + selection.sha() : "", library);
+        publishRepositoryDownloads();
+        js("window.onFlashPrepared('Firmware saved to Library.')");
+        if (!selection.name().equals(file.getString("name"))) {
+            throw new IOException("The selected release file name has changed.");
+        }
+        return repositories.loadLocal(file.getString("name"), file.getString("sha256"), file.getLong("size"), library);
+    }
+
+    private JSONObject findReleaseFile(String board, String role, String source, String tag, String name) throws Exception {
+        if (catalogue == null || library == null) throw new IOException("Firmware catalogue is unavailable.");
+        var versions = catalogue.versions(board, role, source, library);
+        for (int i = 0; i < versions.length(); i++) {
+            JSONObject option = versions.getJSONObject(i);
+            if (tag.equals(option.getString("tag")) && name.equals(option.getString("name"))) return option;
+        }
+        throw new IOException("The selected release file is unavailable for this board and role.");
+    }
+
+    private void publishFirmware(JSONObject details, boolean restored) throws JSONException {
+        js((details.getBoolean("direct") ? "window.onDownload(" : "window.onCachedExport(") +
+                details + ",null," + restored + ")");
+    }
+
+    private void beginFlashReview(FlashReview review) {
+        UsbDevice device = review.device();
+        log.add("flash.usb", "Checking selected device before preparation deviceId=" + device.getDeviceId() +
+                " present=" + device.equals(findDevice(device.getDeviceId())) + " permission=" + usb.hasPermission(device));
+        if (approved || repeaterBusy || !device.equals(findDevice(device.getDeviceId()))) {
+            flashFailed("The selected USB device disconnected or changed.");
+            return;
+        }
+        if (flashDriver(device) == null) {
+            flashFailed("The selected USB connection does not support the direct-write protocol for this firmware.");
+            return;
+        }
+        if (usb.hasPermission(device)) {
+            prepareFlash(review);
+        } else if (pendingPermission >= 0) {
+            flashFailed("Finish the pending USB access request, then start Flash again.");
+        } else {
+            pendingFlashPermission = review;
+            js("window.onFlashPrepared('Waiting for USB access…')");
+            requestUsbPermission(device, false);
+        }
+    }
+
+    private void prepareFlash(FlashReview request) {
+        UsbDevice device = request.device();
+        int id = device.getDeviceId();
+        boolean probeOnly = request.probeOnly();
+        if (!device.equals(findDevice(id)) || !usb.hasPermission(device)) {
+            flashFailed("The selected USB device changed or disconnected.");
+            return;
+        }
+        log.add("flash.prepare", "Preparing image and USB plan deviceId=" + id + " probeOnly=" + probeOnly);
+        js("window.onFlashPrepared(" + JSONObject.quote(probeOnly ? "Checking the connected radio layout…" :
+                "Checking the connected radio and starting firmware update…") + ")");
+        worker.execute(() -> {
+            try {
+                FirmwareLibrary.Image image = request.image();
+                JSONObject plan = probeOnly ? library.layoutDetails().put("tag", "Layout probe") : image.details();
+                String targetBoard = plan.optString("board", DIRECT_UPDATE_BOARD);
+                String tag = plan.getString("tag");
+                plan.put("board", targetBoard).put("usbVendorId", device.getVendorId())
+                        .put("usbProductId", device.getProductId());
+
+                var inspected = inspection;
+                var observed = inspected != null && device.equals(inspected.device()) ? inspected.identity() : null;
+                String reportedBoard = boardOf(device, observed);
+                if (!probeOnly && !reportedBoard.isEmpty() && !targetBoard.equals(reportedBoard)) {
+                    throw new IOException("Connected device is " + reportedBoard + ", but the selected firmware is for " +
+                            targetBoard + ". Select matching firmware before flashing.");
+                }
+
+                Runnable start = () -> {
+                    if (!device.equals(findDevice(id)) || !usb.hasPermission(device)) {
+                        js("window.onComplete(false,'The attached device changed.')");
+                        return;
+                    }
+                    approvedDevice = device;
+                    staged = image;
+                    approved = true;
+                    log.add("flash.algorithm", "Native checks passed; invoking ESP32 serial flasher board=" +
+                            targetBoard + " tag=" + tag);
+                    log.add("plan", (probeOnly ? "User confirmed probe" : "Flash started") +
+                            " deviceId=" + id + " tag=" + tag + " address=0x10000 sha256=" + plan.optString("sha256"));
+                    js("window.startFlash(" + id + "," + plan + "," + probeOnly + ")");
+                };
+                if (!probeOnly) {
+                    view.post(start);
+                } else {
+                    view.post(() -> new AlertDialog.Builder(this)
+                            .setTitle("Check flash layout")
+                            .setMessage("Selected board: " + targetBoard + ".\n\n" +
+                                    "The radio will restart into its bootloader for the chip and flash layout check, then restart again.")
+                            .setNegativeButton("Cancel", (dialog, button) -> js("window.onComplete(false,'Operation canceled.')"))
+                            .setOnCancelListener(dialog -> js("window.onComplete(false,'Operation canceled.')"))
+                            .setPositiveButton("Check layout", (dialog, button) -> start.run())
+                            .show());
+                }
             } catch (Exception error) {
                 failure("plan", error);
                 js("window.onComplete(false," + JSONObject.quote(error.getMessage()) + ")");
             }
         });
     }
+
 
     private void exportLog() {
         log.add("log", "Export requested");
@@ -507,7 +1349,13 @@ public final class MainActivity extends Activity {
             String board = localBoard;
             localBoard = null;
             if (board != null && result == RESULT_OK && data != null && data.getData() != null) {
-                worker.execute(() -> readLocalFirmware(board, data.getData()));
+                worker.execute(() -> readLocalFirmware(board, data.getData(), true));
+            }
+            return;
+        }
+        if (request == PICK_LIBRARY_FIRMWARE) {
+            if (result == RESULT_OK && data != null && data.getData() != null) {
+                worker.execute(() -> importLibraryFirmware(data.getData()));
             }
             return;
         }
@@ -562,7 +1410,72 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void readLocalFirmware(String board, android.net.Uri uri) {
+    private void writeDfuTransfer(DfuTransfer transfer, UsbDevice device) {
+        try {
+            long driveCount = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage).count();
+            log.add("dfu.install", "Write preconditions driveCount=" + driveCount + " selectedDevicePresent=" +
+                    device.equals(findDevice(device.getDeviceId())) + " permission=" + usb.hasPermission(device));
+            if (driveCount != 1 || !device.equals(findDevice(device.getDeviceId())) || !usb.hasPermission(device)) {
+                throw new IOException("Connect only the radio's UF2 drive and allow its USB access before installing.");
+            }
+            String board = transfer.selection().board();
+            byte[] image = transfer.image().bytes();
+            Uf2Volume.Plan plan;
+            BootloaderInfo info;
+            try (var storage = UsbMassStorage.open(usb, device, log)) {
+                plan = Uf2Volume.plan(storage, image.length, log);
+                info = BootloaderInfo.parse(plan.info());
+                log.add("dfu.bootloader", "Parsed INFO_UF2 boardId=" + info.boardId() + " model=" + info.model() +
+                        " version=" + info.version() + " status=" + info.status() + " plannedSectors=" + plan.sectorCount());
+                if (!info.matchesBoard(board)) {
+                    throw new IOException("The connected bootloader reports " + info.boardId() +
+                            ". The selected firmware is for " + board + ".");
+                }
+                JSONObject details = transfer.image().details();
+                String name = details.getString("name");
+                if (!details.optString("board").equals(board) || !MeshCoreCatalogue.safeName(name) ||
+                        !name.toLowerCase(Locale.ROOT).endsWith(".uf2")) {
+                    throw new IOException("The verified firmware does not have a safe UF2 filename.");
+                }
+                FirmwareLibrary.validateUf2(image, MeshCoreCatalogue.uf2Start(board));
+                log.add("dfu.install", "Image checks passed board=" + board + " name=" + name +
+                        " bytes=" + image.length + " start=0x" + Integer.toHexString(MeshCoreCatalogue.uf2Start(board)));
+                long[] sectors = plan.sectors();
+                int current = 0;
+                while (current < sectors.length) {
+                    int count = 1;
+                    if (current < sectors.length - 1) {
+                        while (count < 16 && current + count < sectors.length - 1 &&
+                                sectors[current + count] == sectors[current] + count) count++;
+                    }
+                    boolean finalBlock = current == sectors.length - 1;
+                    log.add("dfu.install", "Writing destination block index=" + current + " lba=" + sectors[current] +
+                            " sectors=" + count + " imageOffset=" + (current * 512) + " final=" + finalBlock);
+                    storage.writeBlocks(sectors[current], image, current * 512, count * 512, finalBlock);
+                    current += count;
+                    if (current == sectors.length || current % 256 == 0) {
+                        int percent = current * 100 / sectors.length;
+                        log.add("dfu.install", "UF2 sectors written=" + current + "/" + sectors.length + " percent=" + percent);
+                        js("window.onDfuTransfer(" + JSONObject.quote("Writing verified UF2 directly over USB… " + percent + "%") + ",false)");
+                    }
+                }
+            }
+            pendingDfu = null;
+            dfuWriting = false;
+            log.add("dfu.install", "Sent UF2 directly over USB board=" + board + " bootloader=" + info.boardId() +
+                    " size=" + image.length + " sha256=" + transfer.image().details().getString("sha256"));
+            log.endUsbSession(true, "UF2 blocks delivered to verified bootloader; await device install/reboot");
+            js("window.onDfuTransfer('UF2 sent to the matched bootloader. Keep the cable connected and check that the radio restarts into MeshCore.',true,true)");
+        } catch (Exception error) {
+            pendingDfu = null;
+            dfuWriting = false;
+            failure("dfu.install", error);
+            log.endUsbSession(false, error.getMessage());
+            js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
+        }
+    }
+
+    private void readLocalFirmware(String board, android.net.Uri uri, boolean picked) {
         localImage = null;
         try {
             String name;
@@ -584,11 +1497,12 @@ public final class MainActivity extends Activity {
             String sha = FirmwareLibrary.digest("SHA-256", bytes);
             JSONObject details = new JSONObject().put("board", board).put("name", name)
                     .put("size", bytes.length).put("sha256", sha).put("route", "inspect");
-            if (board.equals("Elecrow ThinkNode M5") && name.toLowerCase(Locale.ROOT).endsWith(".bin")) {
+            if (board.equals(DIRECT_UPDATE_BOARD) && name.toLowerCase(Locale.ROOT).endsWith(".bin")) {
                 try {
                     var approvedImage = library.load();
                     if (sha.equals(approvedImage.details().getString("sha256"))) {
                         details.put("route", "remote")
+                                .put("tag", approvedImage.details().optString("tag"))
                                 .put("source", approvedImage.details().optString("source").equals("save") ? "save" : "official")
                                 .put("role", approvedImage.details().optString("role", "companionBle"));
                     }
@@ -606,11 +1520,59 @@ public final class MainActivity extends Activity {
                 }
             }
             log.add("firmware.local", "Read bytes=" + bytes.length + " sha256=" + sha + " route=" + details.optString("route"));
-            js("window.onLocalFirmware(" + details + ",null)");
+            if (picked) rememberLocalFirmware(board, uri);
+            js("window.onLocalFirmware(" + details + ",null," + picked + ")");
         } catch (Exception error) {
             failure("firmware.local", error);
-            js("window.onLocalFirmware(null," + JSONObject.quote(error.getMessage()) + ")");
+            js("window.onLocalFirmware(null," + JSONObject.quote(error.getMessage()) + "," + picked + ")");
         }
+    }
+
+    private void importLibraryFirmware(android.net.Uri uri) {
+        try {
+            String name;
+            try (var info = getContentResolver().query(uri,
+                    new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                if (info == null || !info.moveToFirst()) throw new IOException("The file name is unavailable.");
+                name = info.getString(0);
+            }
+            if (name == null || name.length() > 220 ||
+                    !name.toLowerCase(Locale.ROOT).matches(".+\\.(uf2|bin|zip|hex)")) {
+                throw new IOException("Choose a UF2, BIN, ZIP, or HEX firmware file.");
+            }
+            byte[] bytes;
+            try (var input = getContentResolver().openInputStream(uri)) {
+                if (input == null) throw new IOException("The selected file cannot be opened.");
+                bytes = FirmwareLibrary.limited(input, FirmwareLibrary.EXPORT_LIMIT);
+            }
+            var details = repositories.importLocalFirmware(name, bytes);
+            log.add("firmware.library", "Imported " + name + " size=" + bytes.length +
+                    " sha256=" + details.getString("sha256"));
+            publishRepositoryDownloads();
+            js("window.onAssetStatus('Firmware added to Library.')");
+        } catch (Exception error) {
+            failure("firmware.library", error);
+            js("window.onAssetStatus(" + JSONObject.quote(error.getMessage()) + ")");
+        }
+    }
+
+    private void rememberLocalFirmware(String board, android.net.Uri uri) {
+        var preferences = getSharedPreferences("local-firmware", MODE_PRIVATE);
+        String previous = preferences.getString("uri", "");
+        try {
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            preferences.edit().putString("uri", uri.toString()).putString("board", board).apply();
+            if (!previous.isEmpty() && !previous.equals(uri.toString())) {
+                getContentResolver().releasePersistableUriPermission(android.net.Uri.parse(previous),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+        } catch (SecurityException error) {
+            log.add("firmware.local", "Document provider declined a persistent grant.");
+        }
+    }
+
+    private void publishRepositoryDownloads() {
+        js("window.onRepositoryInventory(" + repositories.downloads() + ")");
     }
 
     private void publishRepositories() throws JSONException {
@@ -637,7 +1599,7 @@ public final class MainActivity extends Activity {
                 var info = BootloaderInfo.parse(new String(FirmwareLibrary.limited(input, 4096),
                         java.nio.charset.StandardCharsets.US_ASCII));
                 if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("USB drive disconnected.");
-                bootloaderInspection = new BootloaderInspection(device, info);
+                bootloaderInspection = new BootloaderInspection(device, info, document.substring(0, divider));
                 log.add("bootloader", "INFO_UF2 id=" + info.boardId() + " version=" + info.version() +
                         " otafix=" + info.status());
                 publishDevice("Bootloader information read.");
@@ -661,30 +1623,40 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface public void ready() {
             log.add("app", "Local UI ready");
+            try (var input = getAssets().open("meshcore-radio-presets.json")) {
+                js("window.onRadioPresets(" + new JSONArray(new String(input.readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8)) + ")");
+            } catch (IOException | JSONException error) {
+                log.add("repeater.presets", "Bundled presets unavailable");
+            }
             if (catalogue != null) js("window.onBoards(" + catalogue.boards() + ")");
             publishDevice(null);
             try { publishRepositories(); } catch (JSONException error) { failure("repositories", error); }
             if (library != null) worker.execute(() -> {
                 try {
                     var cached = library.load();
-                    js("window.onDownload(" + cached.details() + ",null)");
+                    js("window.onDownload(" + cached.details() + ",null,true)");
                 } catch (FileNotFoundException ordinaryFirstRun) {
                     log.add("cache", "No downloaded image");
                 } catch (Exception error) { failure("cache", error); }
                 try {
-                    js("window.onCachedExport(" + library.loadExport().details() + ",null)");
+                    js("window.onCachedExport(" + library.loadExport().details() + ",null,true)");
                 } catch (FileNotFoundException ordinaryFirstRun) {
                     log.add("cache", "No exportable file cached");
                 } catch (Exception error) { failure("cache.export", error); }
+                publishRepositoryDownloads();
+                var local = getSharedPreferences("local-firmware", MODE_PRIVATE);
+                String uri = local.getString("uri", "");
+                if (!uri.isEmpty()) readLocalFirmware(local.getString("board", ""), android.net.Uri.parse(uri), false);
             });
         }
-        @JavascriptInterface public void scan() {
-            describe("initial inventory", null);
-            int count = usb.getDeviceList().size();
-            publishDevice(count == 0 ? "Scan complete. Android sees no USB devices." :
-                    "Scan complete. USB devices detected: " + count + ".");
-        }
+        @JavascriptInterface public void scan() { runOnUiThread(() -> scanUsb(++usbScan, 0)); }
         @JavascriptInterface public void connectUsb(int id) { runOnUiThread(() -> MainActivity.this.connectUsb(id)); }
+        @JavascriptInterface public void readRepeater(int id) { runOnUiThread(() -> beginReadRepeater(id)); }
+        @JavascriptInterface public void revealRadioKey(int id) { runOnUiThread(() -> showRadioPrivateKey(id)); }
+        @JavascriptInterface public void saveRepeater(int id, String values) {
+            runOnUiThread(() -> confirmRepeater(id, values));
+        }
         @JavascriptInterface public void versions(int request, String board, String role, String source) {
             if (catalogue == null || library == null) {
                 js("window.onVersions(" + request + ",null,'The firmware catalogue is unavailable.')");
@@ -701,42 +1673,38 @@ public final class MainActivity extends Activity {
                 }
             });
         }
-        @JavascriptInterface public void confirm(int id, boolean probeOnly, String source, String role) {
-            runOnUiThread(() -> showConfirmation(id, probeOnly, source, role));
+        @JavascriptInterface public void flash(String selection) {
+            runOnUiThread(() -> beginFlashRequest(selection));
+        }
+
+        @JavascriptInterface public void probeLayout(int id) {
+            runOnUiThread(() -> {
+                UsbDevice device = findDevice(id);
+                if (device == null) { flashFailed("The selected USB device is unavailable."); return; }
+                beginFlashReview(new FlashReview(device, true, null));
+            });
         }
         @JavascriptInterface public void download(String board, String role, String source, String tag, String filename) {
             worker.execute(() -> {
                 try {
-                    if (catalogue == null || library == null) throw new IOException("Firmware catalogue is unavailable.");
-                    var versions = catalogue.versions(board, role, source, library);
-                    JSONObject selected = null;
-                    for (int i = 0; i < versions.length(); i++) {
-                        JSONObject option = versions.getJSONObject(i);
-                        if (tag.equals(option.getString("tag")) && filename.equals(option.getString("name"))) {
-                            selected = option;
-                            break;
-                        }
-                    }
-                    if (selected == null) throw new IOException("This release is unavailable for the selected board and role.");
+                    var selected = findReleaseFile(board, role, source, tag, filename);
                     log.add("download", "Selected board=" + board + " role=" + role + " source=" + source + " tag=" + tag);
-                    var details = library.fetch(source, board, role, selected);
-                    js((details.getBoolean("direct") ? "window.onDownload(" : "window.onCachedExport(") + details + ",null)");
+                    publishFirmware(library.fetch(source, board, role, selected), false);
                 } catch (Exception error) {
                     failure("download", error);
                     js("window.onDownload(null," + JSONObject.quote(error.getMessage()) + ")");
                 }
             });
         }
-        @JavascriptInterface public void saveImage(String board, String role, String source) {
+        @JavascriptInterface public void exportCachedFirmware(String sha, boolean direct) {
             worker.execute(() -> {
                 try {
-                    var image = library.loadExport();
-                    var details = image.details();
-                    if (!board.equals(details.getString("board")) || !role.equals(details.getString("role")) ||
-                            !source.equals(details.getString("source"))) throw new IOException("Download the selected firmware first.");
+                    var image = direct ? library.load() : library.loadExport();
+                    if (!sha.equals(image.details().getString("sha256"))) {
+                        throw new IOException("This firmware file is no longer in the library.");
+                    }
                     showSaveFirmware(image);
                 } catch (Exception error) {
-                    failure("firmware.export", error);
                     js("window.onAssetStatus(" + JSONObject.quote(error.getMessage()) + ")");
                 }
             });
@@ -752,6 +1720,17 @@ public final class MainActivity extends Activity {
                     localBoard = null;
                     failure("firmware.local", error);
                     js("window.onLocalFirmware(null,'Android Files is unavailable.')");
+                }
+            });
+        }
+        @JavascriptInterface public void pickLibraryFirmware() {
+            runOnUiThread(() -> {
+                try {
+                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                            .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), PICK_LIBRARY_FIRMWARE);
+                } catch (ActivityNotFoundException error) {
+                    failure("firmware.library", error);
+                    js("window.onAssetStatus('Android Files is unavailable.')");
                 }
             });
         }
@@ -797,7 +1776,7 @@ public final class MainActivity extends Activity {
                 try {
                     if (library == null) throw new IOException("Firmware library unavailable.");
                     var assets = repositories.assets(url, refresh, library);
-                    log.add("repositories", "UF2 assets=" + assets.getJSONArray("files").length() +
+                    log.add("repositories", "Firmware assets=" + assets.getJSONArray("files").length() +
                             " repository=" + ReleaseRepositories.parse(url).repository());
                     js("window.onRepositoryAssets(" + request + "," + assets + ",null)");
                 } catch (Exception error) {
@@ -812,7 +1791,8 @@ public final class MainActivity extends Activity {
                 try {
                     if (library == null) throw new IOException("Firmware library unavailable.");
                     var image = repositories.download(url, tag, Long.parseLong(id), digest, library);
-                    log.add("repositories", "Downloaded UF2 " + image.getString("name"));
+                    log.add("repositories", "Downloaded " + image.getString("name"));
+                    publishRepositoryDownloads();
                     js("window.onRepositoryDownload(" + request + "," + image + ",null)");
                 } catch (Exception error) {
                     failure("repositories.download", error);
@@ -828,7 +1808,7 @@ public final class MainActivity extends Activity {
                     showSaveFirmware(repositories.loadLocal(name, sha, size, library));
                 } catch (Exception error) {
                     failure("repositories.export", error);
-                    js("window.onRepositoryStatus(" + JSONObject.quote(error.getMessage()) + ")");
+                    js("window.onAssetStatus(" + JSONObject.quote(error.getMessage()) + ")");
                 }
             });
         }
@@ -837,6 +1817,7 @@ public final class MainActivity extends Activity {
             worker.execute(() -> {
                 try {
                     repositories.removeLocal(sha);
+                    publishRepositoryDownloads();
                     js("window.onRepositoryRemoval(" + request + ",null)");
                 } catch (Exception error) {
                     failure("repositories.remove", error);
@@ -854,6 +1835,9 @@ public final class MainActivity extends Activity {
                 startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT)
                         .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), READ_UF2_INFO);
             });
+        }
+        @JavascriptInterface public void installDfu(String selection) {
+            runOnUiThread(() -> beginDfuTransfer(selection));
         }
         @JavascriptInterface public void openOfficial(String board) {
             runOnUiThread(() -> {
@@ -873,9 +1857,8 @@ public final class MainActivity extends Activity {
                 var checked = bootloaderInspection;
                 if (catalogue == null || !MeshCoreCatalogue.safeName(filename)) return;
                 boolean attachedCheck = checked != null && checked.device().equals(findDevice(id));
-                boolean matchingStock = attachedCheck && checked.info().status().equals("absent") &&
-                        checked.info().matchesBoard(board) && checked.info().matchesFix(filename);
-                if (!matchingStock && (attachedCheck || !MeshCoreCatalogue.RAK_1W.equals(board))) return;
+                if (attachedCheck && (!checked.info().matchesBoard(board) ||
+                        checked.info().status().equals("installed") || !checked.info().matchesFix(filename))) return;
                 var files = catalogue.otaFixes(board);
                 for (int i = 0; i < files.length(); i++) if (filename.equals(files.optString(i))) {
                     log.add("bootloader", "Opening official OTAFix download " + filename);
@@ -932,9 +1915,11 @@ public final class MainActivity extends Activity {
         }
         @JavascriptInterface public void finished(boolean success, String reason) {
             log.add("job", "Completed success=" + success + " " + reason);
+            log.endUsbSession(success, reason);
             closePort("job ended");
             staged = null;
             approved = false;
+            approvedDevice = null;
         }
         @JavascriptInterface public void diagnostic(String stage, String message) { log.add(stage, message); }
         @JavascriptInterface public String logTail() {
