@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="dev.meshforge.fieldflasher.usbtest">
+  <uses-sdk android:minSdkVersion="33" />
+  <application android:hasCode="true" android:label="MeshForge USB test runner" />
+  <instrumentation android:name=".UsbHostE2EInstrumentation"
+                   android:targetPackage="dev.meshforge.fieldflasher"
+                   android:label="MeshForge USB end-to-end tests" />
+</manifest>
