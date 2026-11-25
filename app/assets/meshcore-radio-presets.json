@@ -1,0 +1,258 @@
+[
+  {
+    "title": "Australia",
+    "radio": [
+      "915.800",
+      "250",
+      "10",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Australia (Narrow)",
+    "radio": [
+      "916.575",
+      "62.5",
+      "7",
+      "7"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Australia (Mid)",
+    "radio": [
+      "915.075",
+      "125",
+      "9",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Australia: SA, WA",
+    "radio": [
+      "923.125",
+      "62.5",
+      "8",
+      "8"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Australia: QLD",
+    "radio": [
+      "923.125",
+      "62.5",
+      "8",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Brazil",
+    "radio": [
+      "923.125",
+      "62.5",
+      "8",
+      "8"
+    ]
+  },
+  {
+    "title": "Canada",
+    "radio": [
+      "910.525",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 2
+  },
+  {
+    "title": "Costa Rica",
+    "radio": [
+      "910.525",
+      "125",
+      "11",
+      "5"
+    ]
+  },
+  {
+    "title": "EU/UK (Narrow)",
+    "radio": [
+      "869.618",
+      "62.5",
+      "8",
+      "8"
+    ]
+  },
+  {
+    "title": "EU/UK (Deprecated)",
+    "radio": [
+      "869.525",
+      "250",
+      "11",
+      "5"
+    ]
+  },
+  {
+    "title": "Czech Republic (Narrow)",
+    "radio": [
+      "869.432",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "EU 433MHz (Long Range)",
+    "radio": [
+      "433.650",
+      "250",
+      "11",
+      "5"
+    ]
+  },
+  {
+    "title": "EU 433MHz (Narrow)",
+    "radio": [
+      "433.650",
+      "62.5",
+      "8",
+      "8"
+    ]
+  },
+  {
+    "title": "Hungary",
+    "radio": [
+      "869.618",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Netherlands",
+    "radio": [
+      "869.618",
+      "62.5",
+      "7",
+      "5"
+    ]
+  },
+  {
+    "title": "Netherlands (Limburg)",
+    "radio": [
+      "869.618",
+      "62.5",
+      "8",
+      "8"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "New Zealand (Narrow)",
+    "radio": [
+      "917.375",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "New Zealand (Gisborne)",
+    "radio": [
+      "917.375",
+      "250",
+      "11",
+      "5"
+    ],
+    "hash": 0
+  },
+  {
+    "title": "Portugal 433",
+    "radio": [
+      "433.375",
+      "62.5",
+      "9",
+      "6"
+    ]
+  },
+  {
+    "title": "Portugal 868",
+    "radio": [
+      "869.618",
+      "62.5",
+      "7",
+      "6"
+    ]
+  },
+  {
+    "title": "Slovakia",
+    "radio": [
+      "869.618",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 1
+  },
+  {
+    "title": "Switzerland",
+    "radio": [
+      "869.618",
+      "62.5",
+      "8",
+      "8"
+    ]
+  },
+  {
+    "title": "Thailand",
+    "radio": [
+      "921",
+      "62.5",
+      "7",
+      "5"
+    ]
+  },
+  {
+    "title": "USA",
+    "radio": [
+      "910.525",
+      "62.5",
+      "7",
+      "5"
+    ]
+  },
+  {
+    "title": "USA - Southern California",
+    "radio": [
+      "927.875",
+      "62.5",
+      "7",
+      "5"
+    ],
+    "hash": 2
+  },
+  {
+    "title": "Vietnam (Narrow)",
+    "radio": [
+      "920.250",
+      "62.5",
+      "8",
+      "5"
+    ]
+  },
+  {
+    "title": "Vietnam (Deprecated)",
+    "radio": [
+      "920.250",
+      "250",
+      "11",
+      "5"
+    ]
+  }
+]
