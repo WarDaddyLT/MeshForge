@@ -6,118 +6,216 @@
 <title>MeshForge</title>
 <link rel="stylesheet" href="style.css">
 <header id="homeHeader" class="workshop-header">
-  <h1 class="home-banner"><img src="meshforge-banner-wide.png" alt="MeshForge" width="1200" height="210"></h1>
+  <div class="home-banner"><img src="meshforge-banner-wide.png" alt="MeshForge" width="1200" height="210"></div>
   <img class="home-forge" src="forge-home-tall.jpg" alt="" width="1200" height="1200">
+  <div id="homeMotion" class="forge-loop home-motion" aria-hidden="true"></div>
 </header>
 <main>
-  <header id="pageHeader" class="wood-title" hidden><button id="backToFlash" aria-label="Back to Flash">‹</button><h1 id="pageTitle"></h1></header>
+  <header class="wood-title"><div id="titleMotion" class="forge-loop title-motion" aria-hidden="true"></div>
+    <button id="parentBack" hidden><span aria-hidden="true">‹</span></button>
+    <h1 id="pageTitle" tabindex="-1">Configurator</h1></header>
 
-  <nav class="workshop-nav" aria-label="App pages">
-    <button id="showFirmware" aria-current="page"><img class="nav-icon" src="sprite-hammer.png" alt="" width="26" height="26">Flash</button>
-    <button id="showLibrary" aria-current="false"><img class="nav-icon" src="sprite-anvil.png" alt="" width="26" height="26">Library</button>
-    <button id="showRepos" aria-current="false"><img class="nav-icon" src="sprite-mesh.png" alt="" width="26" height="26">Repos</button>
-    <button id="showRepositories" aria-current="false"><img class="nav-icon" src="sprite-tools.png" alt="" width="26" height="26">Settings</button>
+  <nav id="primaryNav" class="workshop-nav" aria-label="App pages">
+    <button id="showConfigurator" aria-current="page"><img class="nav-icon" src="sprite-tools.png" alt="" width="26" height="26">Configurator</button>
+    <button id="showFirmware"><img class="nav-icon" src="sprite-hammer.png" alt="" width="26" height="26">Flash</button>
+    <button id="showLibrary"><img class="nav-icon" src="sprite-anvil.png" alt="" width="26" height="26">Library</button>
+    <button id="showSettings"><img class="nav-icon" src="sprite-mesh.png" alt="" width="26" height="26">Settings</button>
   </nav>
 
-  <div id="firmwarePage">
+  <div id="configuratorPage">
+    <section>
+      <h2 class="wood-label">USB radio</h2>
+      <p>Connect a radio running MeshCore repeater or room-server firmware with a USB data cable.</p>
+      <label for="repeaterDevice">USB device</label>
+      <select id="repeaterDevice" disabled><option value="">No USB radio detected</option></select>
+      <p class="field-note" id="repeaterStatus" role="status" aria-live="polite"></p>
+      <button id="readRepeater" class="primary" disabled>Read settings</button>
+    </section>
+    <form id="repeaterForm" hidden novalidate>
+      <section>
+        <h2 class="wood-label">Radio configuration</h2>
+        <p class="field-note" id="repeaterVersion"></p>
+        <fieldset id="repeaterFields">
+          <details class="config-group" open><summary>Name and location</summary>
+          <div id="repeaterNameField"><label for="repeaterName">Node name</label>
+            <input id="repeaterName" autocomplete="off" maxlength="31" required aria-describedby="configNameBytes">
+            <p id="configNameBytes" class="field-note"></p></div>
+          <div class="radio-fields" id="configCoordinates"></div>
+          <div id="repeaterOwnerField"><label for="repeaterOwner">Owner info</label>
+            <textarea id="repeaterOwner" rows="3" maxlength="119" aria-describedby="configOwnerBytes"></textarea>
+            <p class="field-note" id="configOwnerBytes"></p></div>
+          </details>
+          <details class="config-group" id="configAccessGroup"><summary>Passwords and room access</summary>
+            <div id="configAccess"></div>
+          </details>
+          <details class="config-group"><summary>Announcements and forwarding</summary>
+          <div id="repeaterForwardField"><label for="repeaterForward">Packet forwarding</label>
+            <select id="repeaterForward"><option value="on">On</option><option value="off">Off</option></select></div>
+          <div id="repeaterLocalField"><label for="repeaterLocal">Local advertisement interval (minutes)</label>
+            <input id="repeaterLocal" type="number" min="0" max="240" step="2" inputmode="numeric" aria-describedby="localAdvertHint">
+            <p class="field-note" id="localAdvertHint">Announces this node to nearby radios. Use 0 to turn it off or an even number from 60 to 240.</p></div>
+          <div id="repeaterFloodField"><label for="repeaterFlood">Flood advertisement interval (hours)</label>
+            <input id="repeaterFlood" type="number" min="0" max="168" inputmode="numeric" aria-describedby="floodAdvertHint">
+            <p class="field-note" id="floodAdvertHint">Announces this node across the mesh. Use 0 to turn it off or 3 to 168 hours.</p></div>
+            <div id="configFlood"></div>
+          </details>
+          <details class="config-group" id="repeaterRadioField"><summary>LoRa radio settings</summary>
+            <p class="field-note">Match the settings used by your mesh. Restart the radio after saving changes to the LoRa parameters.</p>
+            <label for="configRadioPreset">Radio preset</label><select id="configRadioPreset">
+              <option value="">Custom</option></select>
+            <div class="radio-fields">
+              <div><label for="repeaterFreq">Frequency (MHz)</label>
+                <input id="repeaterFreq" type="number" min="150" max="2500" step="0.001" inputmode="decimal"></div>
+              <div><label for="repeaterBw">Bandwidth (kHz)</label>
+                <input id="repeaterBw" type="number" min="7" max="1625" step="0.001" inputmode="decimal"></div>
+              <div><label for="repeaterSf">Spreading factor</label>
+                <input id="repeaterSf" type="number" min="5" max="12" inputmode="numeric"></div>
+              <div><label for="repeaterCr">Coding rate (4/n)</label>
+                <input id="repeaterCr" type="number" min="5" max="8" inputmode="numeric"></div>
+            </div>
+            <div class="radio-fields" id="configRadio"></div>
+          </details>
+          <details class="config-group" id="configAclGroup" hidden><summary>Access control list</summary>
+            <p class="field-note">Set the access level for individual nodes by their public key.</p>
+            <div id="configAclRows"></div><button type="button" id="configAclAdd">Add node</button>
+          </details>
+          <details class="config-group" id="configRegionGroup" hidden><summary>Regions</summary>
+            <p class="field-note" id="configRegionStatus"></p>
+            <div id="configRegionControls">
+              <div id="configDefaultRegion"><label for="configScope">Default region</label>
+                <select id="configScope"></select>
+                <p class="field-note">Used for the radio’s own flood traffic when no region is specified.</p></div>
+              <label for="configHome">Home region</label><select id="configHome"></select>
+              <div id="configRegionRows"></div><button type="button" id="configRegionAdd">Add region</button>
+            </div>
+          </details>
+          <details class="config-group"><summary>Device information</summary>
+            <dl class="config-info">
+              <dt>Firmware version</dt><dd id="configVersion"></dd>
+              <dt>Role</dt><dd id="configRole"></dd>
+              <dt>Device clock</dt><dd id="configClock"></dd>
+              <dt>Public key</dt><dd id="configPublicKey"></dd>
+              <dt>Private key</dt><dd><button type="button" id="radioPrivateKey">View private key</button></dd>
+            </dl>
+          </details>
+          <details class="config-group" id="configAdvancedGroup"><summary>Advanced settings</summary>
+            <div id="configAdvanced"></div>
+          </details>
+        </fieldset>
+        <p class="field-note" id="repeaterUnsaved" hidden>Unsaved changes</p>
+        <button class="primary" id="saveRepeater" type="submit" disabled>Save settings</button>
+        <p class="field-note" id="repeaterSaveStatus" role="status"></p>
+      </section>
+    </form>
+  </div>
+
+  <div id="firmwarePage" hidden>
     <div id="connectionBanner" class="connection-banner" role="status" data-state="waiting">
       <span class="connection-icon" aria-hidden="true"><img src="sprite-bee.png" alt="" width="38" height="38">
         <img src="sprite-bee-connected.png" alt="" width="38" height="38"></span>
       <div><strong id="connectionTitle">Waiting for USB</strong><p id="usb">Checking connection…</p></div>
     </div>
-    <section class="device-card"><h2 class="wood-label">Connected device</h2>
+    <section class="device-card"><h2 class="wood-label">Target device</h2>
       <div id="devices" hidden><label for="device">USB device</label><select id="device"></select>
         <p id="deviceInfo"></p></div>
-      <div class="actions"><button id="scan">Scan USB</button><button id="connect" disabled>Probe USB</button></div>
-      <div class="device-fields">
-        <div class="device-field"><label for="board">Board</label><select id="board" disabled>
-          <option value="">Loading board catalogue…</option></select></div>
-        <p id="boardInfo" class="field-note"></p>
-        <div class="device-field"><label for="role">Firmware type</label><select id="role" disabled></select></div>
-        <div class="device-field"><label for="repository">Repository</label><select id="repository">
-          <option value="official">MeshCore Flasher</option><option value="save">SaveMeshcore</option><option value="solo">MeshCore-Solo</option>
-        </select></div>
-        <div class="device-field" id="stagedField"><strong>Staged image</strong>
-          <p id="stagedImage" class="field-note">Download a compatible build in Library</p></div>
+      <div class="actions"><button id="scan">Find USB devices</button><button id="connect" disabled>Read device info</button></div>
+      <label for="board">Board</label><select id="board" disabled>
+        <option value="">Loading board catalogue…</option></select>
+      <p id="boardInfo" class="field-note"></p>
+      <p id="deviceOtaBadge" class="file-status" hidden></p>
+      <button id="probe" class="layout-check" hidden disabled>Check flash layout</button>
+    </section>
+    <section aria-label="Firmware selection"><h2 class="wood-label">Firmware</h2>
+      <label for="repository">Firmware source</label><select id="repository">
+        <option value="local">Local file</option>
+      </select>
+      <div id="remoteFirmware">
+        <div id="roleField"><label for="role">Firmware role</label><select id="role" disabled></select></div>
+        <label for="version">Firmware release or file</label><select id="version" disabled></select>
+        <p id="versionStatus" class="field-note" role="status"></p>
+        <div class="actions">
+          <button id="versions" disabled>Refresh releases</button>
+          <button id="fetch" disabled>Download firmware</button>
+          <button id="openOfficial" hidden>View board on MeshCore Flasher</button>
+          <button id="viewRelease" hidden>View release on GitHub</button>
+        </div>
       </div>
-      <p id="job" class="field-note" role="status">Connect a device or choose a board.</p>
-      <button id="flash" class="primary" disabled><img class="action-icon" src="sprite-hammer.png" alt="" width="22" height="22"> Review and flash</button>
-      <button id="probe" class="layout-check" hidden disabled>Check bootloader layout</button>
+      <div id="localFirmwareField" hidden>
+        <button id="pickLocal">Choose local firmware</button>
+        <p id="localStatus" role="status"></p>
+        <button id="saveLocal" hidden>Export local UF2 file</button>
+      </div>
+      <p id="stagedImage" class="field-note"></p>
+      <p id="downloadStatus" role="status"></p>
+      <p id="job" class="field-note" role="status"></p>
+      <p id="flashError" class="flash-validation" role="alert" hidden></p>
+      <button id="flash" class="primary" aria-describedby="flashError"><img class="action-icon" src="sprite-hammer.png" alt="" width="22" height="22"> Flash</button>
     </section>
-    <section class="library-summary"><h2 class="wood-label">Firmware library</h2>
-      <button class="library-link" id="flashToLibrary"><span><strong id="flashLibraryLabel">Browse firmware</strong><small id="flashLibraryDetail">Find compatible builds and offline copies</small></span><span aria-hidden="true">›</span></button>
-      <button class="library-link" id="flashPickLocal"><span><strong>Browse local firmware</strong><small>Choose a UF2, BIN, ZIP, or HEX file</small></span><span aria-hidden="true">›</span></button>
+    <section id="bootloaderPanel" hidden><h2 class="wood-label">nRF UF2 / OTAFix</h2><p id="otaStatus" role="status"></p>
+      <p id="otaInfoHint" class="field-note" hidden>Select INFO_UF2.TXT from the root of the radio’s DFU drive to verify its board and bootloader.</p>
+      <div class="actions"><button id="readBootloader" disabled>Read UF2 bootloader info</button>
+        <button id="findOtaFixes" hidden>Check OTAFix repositories</button></div>
+      <div id="uf2DfuPanel" class="uf2-dfu-panel" hidden>
+        <p id="dfuStatus" role="status"></p>
+      </div>
+      <div id="otaChoices" hidden>
+        <label for="otaPackage">OTAFix package</label><select id="otaPackage"></select>
+        <p class="field-note">Install the selected package using the bootloader procedure for your board.</p>
+        <button id="downloadOta" disabled>Download selected OTAFix</button>
+      </div>
+      <p id="otaJob" role="status"></p>
     </section>
-    <section id="bootloaderPanel" hidden><h2 class="wood-label">OTAFix bootloader</h2><p id="otaStatus" role="status"></p>
-      <div class="actions"><button id="readBootloader" disabled>Read INFO_UF2.TXT</button></div>
-      <div id="otaDownloads" class="actions"></div></section>
   </div>
 
   <div id="libraryPage" hidden>
-    <section class="library-controls" aria-label="Firmware library controls">
-      <nav class="library-tabs" aria-label="Library pages"><button class="gold" aria-current="page">Firmware</button>
-        <button id="libraryToRepos">Repositories</button></nav>
+    <section class="library-controls">
       <label for="librarySearch">Search firmware</label>
       <input id="librarySearch" type="search" placeholder="Name, version, or format">
       <div class="actions">
-        <button id="librarySelection">Change selection</button>
-        <button id="versions" disabled>Refresh</button>
-        <button id="pickLocal">Browse local firmware</button>
+        <button id="refreshLibrary">Refresh releases</button>
+        <button id="addLibraryFirmware">Import firmware</button>
       </div>
-      <p id="libraryScope" class="field-note"></p><div id="libraryRoles" class="actions role-filters" aria-label="Firmware role"></div>
     </section>
-    <select id="version" aria-label="Selected firmware" hidden disabled></select>
-    <button id="fetch" hidden disabled>Download image</button>
-    <p id="versionStatus" class="library-message" role="status"></p>
-    <ul id="libraryResults" class="library-results" aria-label="Available firmware"></ul>
-    <section id="libraryActions">
-      <div class="actions"><button id="allSaveAssets" hidden>All published assets</button>
-        <button id="openOfficial" hidden>Open board on MeshCore Flasher</button>
-        <button id="saveImage" hidden>Save firmware file</button>
-        <button id="saveLocal" hidden>Save local UF2 copy</button></div>
-      <p id="downloadStatus" role="status"></p><p id="saveStatus" role="status"></p><p id="localStatus" role="status"></p>
-    </section>
+    <p id="libraryStatus" class="library-message" role="status"></p>
+    <ul id="libraryResults" class="library-results" aria-label="Repository release assets, downloaded assets, and local firmware"></ul>
   </div>
 
-  <div id="repositoryPage" hidden>
-    <section><h2 id="repositoryHeading" class="wood-label">Repositories</h2>
-      <div id="repositoryList"></div>
-      <details class="add-repository">
-        <summary>Add a repository</summary>
+  <div id="settingsPage" hidden>
+    <section><h2 class="wood-label">Repositories</h2>
+      <ul id="repositoryList" class="repository-list"></ul>
+      <div class="add-repository">
         <label for="repositoryUrl">GitHub repository or release URL</label>
         <input id="repositoryUrl" type="url" inputmode="url" maxlength="400" placeholder="https://github.com/owner/repository">
         <label for="repositoryKind">Category</label><select id="repositoryKind">
-          <option value="firmware">Firmware</option><option value="bootloader">OTA bootloaders</option></select>
+          <option value="firmware">Firmware</option><option value="bootloader">OTAFix</option></select>
         <button id="addRepository">Add repository</button>
-      </details>
+      </div>
       <p id="repositoryStatus" role="status"></p>
     </section>
-    <section id="diagnostics"><h2 class="wood-label">Diagnostics</h2><p>Export a copy after a connection or flashing problem.</p>
+    <section><h2 class="wood-label">Diagnostics</h2><p>Export a copy after a connection or flashing problem.</p>
       <div class="actions"><button id="show">Refresh log</button><button id="export">Export log</button></div>
       <pre aria-label="Recent diagnostic events" id="log" tabindex="0"></pre><p id="exportStatus" role="status"></p></section>
   </div>
 
   <div id="progressPage" hidden>
-    <div id="forgeScene" class="forge-scene" aria-hidden="true">
-      <img class="forge-hearth" src="sprite-hearth.png" alt="">
-      <img class="forge-mascot" src="sprite-mascot.png" alt="">
-      <img class="forge-sparks" src="sprite-sparks.png" alt="">
-    </div>
-    <section class="progress-card"><h2 id="progressTarget">ThinkNode M5</h2><p id="progressImage"></p>
+    <div id="forgeScene" class="forge-loop forge-scene" aria-hidden="true"></div>
+    <section class="progress-card" id="progressCard"><h2 id="progressTarget">Connected radio</h2><p id="progressImage"></p>
+      <p id="progressOutcome" class="progress-outcome" role="status" hidden></p>
       <div class="progress-meter"><progress id="progress" aria-label="Firmware transfer" max="100"></progress>
         <strong id="progressPercent"></strong></div>
       <p id="progressStatus" role="status"></p>
       <ol id="progressStages" class="progress-stages" aria-label="Flash stages">
+        <li id="stageDownload" hidden>Download and verify firmware <span></span></li>
         <li id="stagePrepare">Prepare device <span></span></li>
         <li id="stageWrite">Write firmware <span></span></li>
         <li id="stageVerify">Verify firmware <span></span></li>
         <li id="stageReset">Reset device <span></span></li>
       </ol>
       <p id="progressNotice" class="field-note">Keep the USB cable connected during this operation.</p>
-      <button id="progressDone" class="primary" hidden>Back to Flash</button>
     </section>
   </div>
 </main>
 <script src="esptool.bundle.js"></script>
+<script src="configurator.js"></script>
 <script src="app.js"></script>
 </html>
