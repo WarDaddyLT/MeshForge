@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Set;
 
 final class ReleaseRepositories {
@@ -60,7 +61,17 @@ final class ReleaseRepositories {
     }
 
     private static JSONObject item(Link link, boolean bootloader, boolean builtIn) throws JSONException {
-        return new JSONObject().put("url", link.url()).put("bootloader", bootloader).put("builtIn", builtIn);
+        var item = new JSONObject().put("url", link.url()).put("bootloader", bootloader).put("builtIn", builtIn);
+        if (!bootloader && link.tag().isEmpty()) {
+            String source = switch (link.repository().toLowerCase(Locale.ROOT)) {
+                case "meshcore-dev/meshcore" -> "official";
+                case "aigarslv/savemeshcore" -> "save";
+                case "marekzegare4/meshcore-solo" -> "solo";
+                default -> "";
+            };
+            if (!source.isEmpty()) item.put("source", source);
+        }
+        return item;
     }
 
     private JSONArray saved() throws JSONException {
@@ -69,13 +80,31 @@ final class ReleaseRepositories {
 
     JSONArray links() throws JSONException {
         var list = new JSONArray();
-        list.put(item(parse("https://github.com/meshcore-dev/MeshCore"), false, true));
-        list.put(item(parse("https://github.com/aigarslv/SaveMeshcore"), false, true));
-        list.put(item(parse("https://github.com/MarekZegare4/MeshCore-Solo"), false, true));
-        list.put(item(parse("https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX"), true, true));
+        var removed = preferences.getStringSet("removed-defaults", Set.of());
+        for (String url : new String[]{"https://github.com/meshcore-dev/MeshCore",
+                "https://github.com/aigarslv/SaveMeshcore", "https://github.com/MarekZegare4/MeshCore-Solo",
+                "https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX"}) {
+            Link link = parse(url);
+            if (!removed.contains(link.url().toLowerCase(Locale.ROOT))) {
+                list.put(item(link, link.repo().equals("Adafruit_nRF52_Bootloader_OTAFIX"), true));
+            }
+        }
         var saved = saved();
-        for (int i = 0; i < saved.length(); i++) list.put(saved.getJSONObject(i));
+        for (int i = 0; i < saved.length(); i++) {
+            var entry = saved.getJSONObject(i);
+            list.put(item(parse(entry.getString("url")), entry.optBoolean("bootloader"), false));
+        }
         return list;
+    }
+
+    private Link configured(String raw) throws Exception {
+        Link link = parse(raw);
+        var list = links();
+        for (int i = 0; i < list.length(); i++) {
+            Link saved = parse(list.getJSONObject(i).getString("url"));
+            if (saved.url().equalsIgnoreCase(link.url())) return saved;
+        }
+        throw new IOException("This repository is no longer configured.");
     }
 
     void add(String raw, boolean bootloader) throws Exception {
@@ -99,9 +128,29 @@ final class ReleaseRepositories {
         for (int i = 0; i < list.length(); i++) {
             var entry = list.getJSONObject(i);
             if (!url.equalsIgnoreCase(entry.getString("url"))) remaining.put(entry);
-            else Files.deleteIfExists(index(parse(entry.getString("url"))).toPath());
         }
-        preferences.edit().putString("links", remaining.toString()).apply();
+        var removed = new java.util.HashSet<>(preferences.getStringSet("removed-defaults", Set.of()));
+        var configured = links();
+        for (int i = 0; i < configured.length(); i++) {
+            JSONObject entry = configured.getJSONObject(i);
+            if (entry.optBoolean("builtIn") && url.equalsIgnoreCase(entry.getString("url"))) {
+                removed.add(url.toLowerCase(Locale.ROOT));
+            }
+        }
+        File removedIndex = index(link);
+        if (removedIndex.isFile()) {
+            // Preserve the names of older offline files before discarding this repository's index.
+            JSONArray downloads = downloads();
+            for (int i = 0; i < downloads.length(); i++) {
+                JSONObject details = downloads.getJSONObject(i);
+                File metadata = downloadDetails(details.getString("sha256"));
+                if (!metadata.isFile() || link.repository().equalsIgnoreCase(details.optString("sourceLabel"))) {
+                    FirmwareLibrary.atomic(metadata, details.toString().getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            Files.deleteIfExists(removedIndex.toPath());
+        }
+        preferences.edit().putString("links", remaining.toString()).putStringSet("removed-defaults", removed).apply();
     }
 
     private File index(Link link) throws Exception {
@@ -114,7 +163,7 @@ final class ReleaseRepositories {
     }
 
     JSONObject assets(String raw, boolean refresh, FirmwareLibrary library) throws Exception {
-        Link link = parse(raw);
+        Link link = configured(raw);
         File index = index(link);
         JSONArray files;
         String notice = "";
@@ -176,15 +225,21 @@ final class ReleaseRepositories {
     private JSONArray publishedAssets(Link link, FirmwareLibrary library) throws Exception {
         String endpoint = "https://api.github.com/repos/" + link.repository() + "/releases";
         if (link.tag().isEmpty()) {
-            var releases = new JSONArray(new String(library.request(endpoint + "?per_page=6", API_HOST,
-                    5 * 1024 * 1024), StandardCharsets.UTF_8));
             var result = new JSONArray();
-            for (int i = 0; i < releases.length(); i++) append(result, releases.getJSONObject(i), link, false);
+            for (int page = 1; ; page++) {
+                var releases = new JSONArray(new String(library.request(endpoint + "?per_page=100&page=" + page,
+                        API_HOST, 5 * 1024 * 1024), StandardCharsets.UTF_8));
+                for (int i = 0; i < releases.length(); i++) append(result, releases.getJSONObject(i), link);
+                if (releases.length() < 100) break;
+                if (result.toString().getBytes(StandardCharsets.UTF_8).length > INDEX_LIMIT) {
+                    throw new IOException("The release list exceeds the offline cache limit.");
+                }
+            }
             return result;
         }
         var release = release(link, link.tag(), library);
         var result = new JSONArray();
-        append(result, release, link, true);
+        append(result, release, link);
         return result;
     }
 
@@ -195,69 +250,175 @@ final class ReleaseRepositories {
                 "/releases/tags/" + tag, API_HOST, 2 * 1024 * 1024), StandardCharsets.UTF_8));
     }
 
-    private static boolean isUf2Asset(JSONObject asset) {
+    private static boolean isRepositoryAsset(JSONObject asset) {
         String name = asset.optString("name");
-        return MeshCoreCatalogue.safeName(name) && name.toLowerCase(Locale.ROOT).endsWith(".uf2") &&
-                asset.optLong("size") > 0 && asset.optLong("size") <= FirmwareLibrary.EXPORT_LIMIT;
+        return !name.isBlank() && name.length() <= 512 && asset.optLong("id") > 0 && asset.optLong("size", -1) >= 0;
     }
 
-    private static void append(JSONArray result, JSONObject release, Link link, boolean explicit) throws JSONException {
+    private static boolean isDownloadableAsset(JSONObject asset) {
+        String name = asset.optString("name");
+        long size = asset.optLong("size", -1);
+        return isRepositoryAsset(asset) && MeshCoreCatalogue.safeName(name) && size > 0 &&
+                size <= FirmwareLibrary.EXPORT_LIMIT;
+    }
+
+    private static void append(JSONArray result, JSONObject release, Link link) throws JSONException {
         String tag = release.optString("tag_name");
         if (!tag.matches("[A-Za-z0-9][A-Za-z0-9._+-]{0,99}") || release.optBoolean("draft") ||
-                (!explicit && release.optBoolean("prerelease")) || (!link.tag().isEmpty() && !tag.equals(link.tag()))) return;
+                (!link.tag().isEmpty() && !tag.equals(link.tag()))) return;
         var assets = release.getJSONArray("assets");
         for (int i = 0; i < assets.length(); i++) {
             var asset = assets.getJSONObject(i);
-            if (!isUf2Asset(asset)) continue;
+            if (!isRepositoryAsset(asset)) continue;
             String digest = asset.optString("digest");
             result.put(new JSONObject().put("name", asset.getString("name")).put("tag", tag)
+                    .put("releaseName", release.optString("name"))
+                    .put("prerelease", release.optBoolean("prerelease"))
+                    .put("publishedAt", release.optString("published_at"))
                     .put("id", Long.toString(asset.getLong("id"))).put("size", asset.getLong("size"))
+                    .put("sourceLabel", link.repository())
+                    .put("downloadable", isDownloadableAsset(asset))
                     .put("digest", digest.matches("sha256:[0-9a-f]{64}") ? digest : ""));
         }
     }
 
     JSONObject download(String raw, String tag, long id, String digest, FirmwareLibrary library) throws Exception {
-        Link link = parse(raw);
-        if (!digest.matches("sha256:[0-9a-f]{64}")) throw new IOException("The asset has no published SHA-256.");
+        Link link = configured(raw);
+        if (!digest.isEmpty() && !digest.matches("sha256:[0-9a-f]{64}")) throw new IOException("Invalid asset checksum.");
         var release = release(link, tag, library);
-        if (!tag.equals(release.optString("tag_name")) || release.optBoolean("draft") ||
-                (link.tag().isEmpty() && release.optBoolean("prerelease"))) throw new IOException("Release unavailable.");
+        if (!tag.equals(release.optString("tag_name")) || release.optBoolean("draft")) throw new IOException("Release unavailable.");
         var assets = release.getJSONArray("assets");
         for (int i = 0; i < assets.length(); i++) {
             var asset = assets.getJSONObject(i);
-            if (id != asset.optLong("id") || !digest.equals(asset.optString("digest")) || !isUf2Asset(asset)) continue;
-            String sha = digest.substring(7);
+            String publishedDigest = asset.optString("digest");
+            if (id != asset.optLong("id") || !digest.isEmpty() && !digest.equals(publishedDigest) ||
+                    !isDownloadableAsset(asset)) continue;
+            byte[] data = library.fetchRepositoryAsset(link.repository(), tag, asset, FirmwareLibrary.EXPORT_LIMIT);
+            String sha = FirmwareLibrary.digest("SHA-256", data);
             File file = localFile(sha);
             ensureDirectory();
             long used = 0;
             var entries = directory.listFiles();
             if (entries == null) throw new IOException("Repository cache is unavailable.");
             for (File entry : entries) {
-                if (entry.getName().endsWith(".uf2") && !entry.equals(file)) used += entry.length();
+                if (entry.getName().matches("[0-9a-f]{64}\\.(asset|uf2)") && !entry.equals(file)) used += entry.length();
             }
             if (asset.getLong("size") > FILE_CACHE_LIMIT - used) {
                 throw new IOException("Repository storage is full. Remove an offline copy to free space.");
             }
-            byte[] data = library.fetchAsset(link.repository(), tag, asset, FirmwareLibrary.EXPORT_LIMIT);
+            var details = new JSONObject().put("name", asset.getString("name")).put("tag", tag)
+                    .put("releaseName", release.optString("name")).put("prerelease", release.optBoolean("prerelease"))
+                    .put("sourceLabel", link.repository()).put("sha256", sha).put("size", data.length)
+                    .put("checksumPublished", publishedDigest.matches("sha256:[0-9a-f]{64}"));
             FirmwareLibrary.atomic(file, data);
-            return new JSONObject().put("name", asset.getString("name"))
-                    .put("sha256", sha).put("size", data.length);
+            saveDetails(sha, details);
+            return details;
         }
         throw new IOException("This published asset has changed or is unavailable.");
     }
 
+    JSONObject importLocalFirmware(String name, byte[] bytes) throws Exception {
+        if (!FirmwareLibrary.safeFirmwareName(name) ||
+                !name.toLowerCase(Locale.ROOT).matches(".+\\.(uf2|bin|zip|hex)")) {
+            throw new IOException("Choose a UF2, BIN, ZIP, or HEX firmware file.");
+        }
+        if (bytes.length == 0 || bytes.length > FirmwareLibrary.EXPORT_LIMIT) {
+            throw new IOException("The selected firmware file is empty or too large.");
+        }
+        String sha = FirmwareLibrary.digest("SHA-256", bytes);
+        File file = localFile(sha);
+        ensureDirectory();
+        long used = 0;
+        var entries = directory.listFiles();
+        if (entries == null) throw new IOException("Repository storage is unavailable.");
+        for (File entry : entries) {
+            if (entry.getName().matches("[0-9a-f]{64}\\.(asset|uf2)") && !entry.equals(file)) used += entry.length();
+        }
+        if (bytes.length > FILE_CACHE_LIMIT - used) {
+            throw new IOException("Repository storage is full. Remove an offline copy to free space.");
+        }
+        var details = new JSONObject().put("name", name).put("tag", "Added locally")
+                .put("sourceLabel", "Local files").put("local", true).put("sha256", sha).put("size", bytes.length);
+        FirmwareLibrary.atomic(file, bytes);
+        saveDetails(sha, details);
+        return details;
+    }
+
+    private void saveDetails(String sha, JSONObject details) throws Exception {
+        File metadata = downloadDetails(sha);
+        if (metadata.isFile()) {
+            try (var input = new FileInputStream(metadata)) {
+                JSONObject previous = new JSONObject(new String(FirmwareLibrary.limited(input, 8192), StandardCharsets.UTF_8));
+                if (previous.optBoolean("local")) return;
+            } catch (Exception unreadable) { /* Replace incomplete or invalid metadata. */ }
+        }
+        FirmwareLibrary.atomic(metadata, details.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
     private File localFile(String sha) throws IOException {
         if (!sha.matches("[0-9a-f]{64}")) throw new IOException("Invalid file checksum.");
-        return new File(directory, sha + ".uf2");
+        File legacy = new File(directory, sha + ".uf2");
+        return legacy.isFile() ? legacy : new File(directory, sha + ".asset");
     }
 
     void removeLocal(String sha) throws IOException {
         Files.deleteIfExists(localFile(sha).toPath());
+        Files.deleteIfExists(downloadDetails(sha).toPath());
+    }
+
+    private File downloadDetails(String sha) {
+        return new File(directory, "download-" + sha + ".json");
+    }
+
+    JSONArray downloads() {
+        var files = new LinkedHashMap<String, JSONObject>();
+        var entries = directory.listFiles();
+        if (entries == null) return new JSONArray();
+        for (File entry : entries) {
+            if (!entry.getName().matches("download-[0-9a-f]{64}\\.json")) continue;
+            try (var input = new FileInputStream(entry)) {
+                var details = new JSONObject(new String(FirmwareLibrary.limited(input, 8192), StandardCharsets.UTF_8));
+                String sha = details.getString("sha256");
+                if (localFile(sha).isFile() && localFile(sha).length() == details.getLong("size")) files.put(sha, details);
+            } catch (Exception unreadable) { /* Ignore incomplete or evicted entries. */ }
+        }
+        // Recover the repository for older downloads from their release index.
+        var sources = new LinkedHashMap<String, String>();
+        try {
+            JSONArray links = links();
+            for (int i = 0; i < links.length(); i++) {
+                Link link = parse(links.getJSONObject(i).getString("url"));
+                sources.put(index(link).getName(), link.repository());
+            }
+        } catch (Exception unreadable) { /* Downloads can still be listed without the repository name. */ }
+        for (File entry : entries) {
+            if (!entry.getName().matches("[0-9a-f]{64}\\.json")) continue;
+            try {
+                var assets = readIndex(entry);
+                for (int i = 0; i < assets.length(); i++) {
+                    var asset = assets.getJSONObject(i);
+                    String digest = asset.optString("digest");
+                    if (!digest.matches("sha256:[0-9a-f]{64}")) continue;
+                    String sha = digest.substring(7);
+                    long size = asset.optLong("size");
+                    String source = asset.optString("sourceLabel", sources.getOrDefault(entry.getName(), ""));
+                    if (!files.containsKey(sha) && localFile(sha).isFile() && localFile(sha).length() == size) {
+                        files.put(sha, new JSONObject().put("name", asset.getString("name")).put("tag", asset.getString("tag"))
+                                .put("sha256", sha).put("size", size).put("sourceLabel", source));
+                    } else if (files.containsKey(sha) && !source.isBlank()) {
+                        JSONObject details = files.get(sha);
+                        String existing = details.optString("sourceLabel");
+                        if (existing.isBlank() || existing.equals("Repository download")) details.put("sourceLabel", source);
+                    }
+                }
+            } catch (Exception unreadable) { /* Other cached files remain available. */ }
+        }
+        return new JSONArray(files.values());
     }
 
     FirmwareLibrary.Image loadLocal(String name, String sha, long size, FirmwareLibrary library) throws Exception {
-        if (!MeshCoreCatalogue.safeName(name) || !name.toLowerCase(Locale.ROOT).endsWith(".uf2")) {
-            throw new IOException("Invalid UF2 file name.");
+        if (!FirmwareLibrary.safeFirmwareName(name) || !name.toLowerCase(Locale.ROOT).matches(".+\\.(uf2|bin|zip|hex)")) {
+            throw new IOException("Invalid firmware file name.");
         }
         File file = localFile(sha);
         if (!file.isFile()) file = library.cachedUf2(sha, size);
