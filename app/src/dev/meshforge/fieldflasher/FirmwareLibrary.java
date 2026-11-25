@@ -58,6 +58,10 @@ final class FirmwareLibrary {
         return output.toString();
     }
 
+    static boolean safeFirmwareName(String name) {
+        return name != null && name.matches("[\\p{L}\\p{N}][\\p{L}\\p{N} ._()+-]{0,219}");
+    }
+
     private static void validateEspHeader(byte[] data) throws IOException {
         if (data.length < 288 || (data[0] & 255) != 0xe9 || data[1] < 1 || data[1] > 16 ||
                 (data[12] & 255) != 9 || data[13] != 0 ||
@@ -114,16 +118,26 @@ final class FirmwareLibrary {
     }
 
     byte[] fetchAsset(String repository, String tag, JSONObject asset, int maximum) throws Exception {
+        return fetchAsset(repository, tag, asset, maximum, true);
+    }
+
+    byte[] fetchRepositoryAsset(String repository, String tag, JSONObject asset, int maximum) throws Exception {
+        return fetchAsset(repository, tag, asset, maximum, false);
+    }
+
+    private byte[] fetchAsset(String repository, String tag, JSONObject asset, int maximum,
+                              boolean requirePublishedDigest) throws Exception {
         String name = asset.getString("name");
         int size = asset.getInt("size");
         String hash = asset.optString("digest");
         String url = "https://github.com/" + repository + "/releases/download/" + tag + "/" + name;
+        boolean hasDigest = hash.matches("sha256:[0-9a-f]{64}");
         if (!MeshCoreCatalogue.safeName(name) || !url.equals(asset.getString("browser_download_url")) ||
-                !hash.matches("sha256:[0-9a-f]{64}") || size <= 0 || size > maximum) {
+                requirePublishedDigest && !hasDigest || !hash.isEmpty() && !hasDigest || size <= 0 || size > maximum) {
             throw new IOException("Release asset URL, SHA-256 or size failed validation");
         }
         byte[] bytes = request(url, ASSET_HOSTS, size);
-        if (bytes.length != size || !hash.equals("sha256:" + digest("SHA-256", bytes))) {
+        if (bytes.length != size || hasDigest && !hash.equals("sha256:" + digest("SHA-256", bytes))) {
             throw new IOException("Published SHA-256 or size does not match the download");
         }
         return bytes;
@@ -135,7 +149,10 @@ final class FirmwareLibrary {
         String repository = MeshCoreCatalogue.repository(source);
         boolean uf2 = name.endsWith(".uf2");
         boolean direct = !option.getString("appTag").isEmpty();
-        boolean exportOnly = source.equals("save") && option.optBoolean("exportOnly");
+        if (direct && !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) {
+            throw new IOException("Direct flashing is unavailable for this board and firmware role.");
+        }
+        boolean exportOnly = option.optBoolean("exportOnly");
         JSONObject release = new JSONObject(new String(request(
                 "https://api.github.com/repos/" + repository + "/releases/tags/" + tag,
                 Set.of("api.github.com"), 2 * 1024 * 1024), StandardCharsets.UTF_8));
@@ -144,7 +161,8 @@ final class FirmwareLibrary {
 
         JSONObject asset = uniqueAsset(release, Pattern.compile(Pattern.quote(name)));
         if (asset == null) throw new IOException("Selected image is unavailable in the published release");
-        byte[] image = fetchAsset(repository, tag, asset, direct ? APP_LENGTH : EXPORT_LIMIT);
+        byte[] image = direct ? reusableApp(asset) : null;
+        if (image == null) image = fetchAsset(repository, tag, asset, direct ? APP_LENGTH : EXPORT_LIMIT);
         String sha = asset.getString("digest").substring(7);
         int size = image.length;
         var details = new JSONObject().put("tag", tag).put("name", name).put("size", size)
@@ -168,7 +186,7 @@ final class FirmwareLibrary {
                     " asset=" + asset.getLong("id") + " sha256=" + sha);
             return details;
         }
-        if (source.equals("save")) {
+        if (source.equals("save") || !role.equals("companionBle")) {
             String mergedName = name.substring(0, name.length() - 4) + "-merged.bin";
             JSONObject mergedAsset = uniqueAsset(release, Pattern.compile(Pattern.quote(mergedName)));
             if (mergedAsset == null) throw new IOException("Matching published partition layout is unavailable");
@@ -178,9 +196,9 @@ final class FirmwareLibrary {
                     !digest("MD5", Arrays.copyOfRange(merged, 0x8000, partitionEnd))
                             .equals(layout.getString("partitionMd5")) ||
                     !Arrays.equals(image, 0, size, merged, APP_START, APP_START + size)) {
-                throw new IOException("SaveMeshcore image does not match the approved M5 partition layout");
+                throw new IOException("The published app image does not match the approved partition layout for the selected board.");
             }
-            log.add("image", "Matched SaveMeshcore app and approved partition table against its published merged image");
+            log.add("image", "Matched app bytes and partition table against the published merged image role=" + role);
         }
         details.put("md5", digest("MD5", image));
         File cacheMetadata = new File(directory, "release.json");
@@ -188,6 +206,7 @@ final class FirmwareLibrary {
             try (var metadata = new FileInputStream(cacheMetadata)) {
                 JSONObject cached = new JSONObject(new String(limited(metadata, 8192), StandardCharsets.UTF_8));
                 if (source.equals(cached.optString("source", "official")) && tag.equals(cached.getString("tag")) &&
+                        name.equals(cached.optString("name")) &&
                         (cached.getLong("assetId") != asset.getLong("id") || !sha.equals(cached.getString("sha256")))) {
                     throw new IOException("The published asset changed for this tag. Cached image retained.");
                 }
@@ -204,6 +223,21 @@ final class FirmwareLibrary {
         }
         log.add("download", "Committed asset=" + asset.getLong("id") + " size=" + size + " sha256=" + sha);
         return details;
+    }
+
+    private byte[] reusableApp(JSONObject asset) {
+        try {
+            var exported = loadExport();
+            byte[] bytes = exported.bytes();
+            if (bytes.length <= APP_LENGTH && bytes.length == asset.getInt("size") &&
+                    asset.getString("digest").equals("sha256:" + exported.details().getString("sha256"))) {
+                log.add("image", "Reusing the verified offline app file");
+                return bytes;
+            }
+        } catch (Exception ignored) {
+            // The app file can still be acquired and verified from the selected release.
+        }
+        return null;
     }
 
     static void validateUf2(byte[] image, int start) throws IOException {
