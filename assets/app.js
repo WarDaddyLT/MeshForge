@@ -16,6 +16,7 @@ let downloading = false;
 let cachedM5 = null;
 let cachedExport = null;
 let curatedInventory = null;
+let savedFirmwareChoices = [];
 let bootloaderKey = '';
 let otaPackageKey = '';
 let otaPackages = [];
@@ -54,10 +55,34 @@ let repeaterView = null;
 let dfuWorkflowStatus = '';
 let flashValidationKey = '';
 let flashReviewAttempted = false;
-const flashInputs = ['board', 'device', 'role', 'version', 'repository'];
+const flashInputs = ['board', 'device', 'role', 'version', 'repository', 'savedFirmware'];
 const flashActions = ['connectionBanner', 'pickLocal'];
 
 function source() { return byId('repository').value || 'local'; }
+
+function selectedSavedFirmware() { return savedFirmwareChoices[byId('savedFirmware').value]; }
+
+function renderSavedFirmware() {
+  const board = byId('board').value;
+  const supportsUf2 = catalogue.some(entry => entry.name === board && entry.uf2Dfu);
+  const select = byId('savedFirmware');
+  const previous = savedFirmwareChoices[select.value];
+  const curated = curatedImages().filter(item => item.board === board &&
+    (item.direct || supportsUf2 && !item.exportOnly && /\.uf2$/i.test(item.name)));
+  const custom = supportsUf2 ? repositoryDownloads.filter(item =>
+    (item.local || item.checksumPublished) && /\.uf2$/i.test(item.name) && !curated.some(entry => entry.sha256 === item.sha256)) : [];
+  savedFirmwareChoices = [...curated, ...custom];
+  select.replaceChildren();
+  addOption(select, '', 'Choose saved firmware');
+  savedFirmwareChoices.forEach((file, index) => addOption(select, String(index),
+    [file.name, file.tag, file.sourceLabel || firmwareSourceNames[file.source]].filter(Boolean).join(' · ')));
+  const selected = savedFirmwareChoices.findIndex(file => previous &&
+    file.sha256 === previous.sha256 && file.cacheKey === previous.cacheKey);
+  if (selected >= 0) select.value = String(selected);
+  select.disabled = busy || !savedFirmwareChoices.length;
+  byId('savedFirmwareStatus').textContent = !board ? 'Choose a target board first.' :
+    savedFirmwareChoices.length ? 'Saved on this phone.' : 'No compatible application images are saved for this board.';
+}
 
 function selectedRelease() { return versionList[byId('version').value]; }
 
@@ -69,6 +94,7 @@ function matchesSelection(image) {
 function isDfuSelection(release = selectedRelease(), board = byId('board').value) {
   if (!catalogue.some(entry => entry.name === board && entry.uf2Dfu)) return false;
   if (source() === 'local') return localFirmware?.board === board && localFirmware.route === 'uf2';
+  if (source() === 'library') return /\.uf2$/i.test(selectedSavedFirmware()?.name || '');
   if (!release?.name?.toLowerCase().endsWith('.uf2')) return false;
   if (source().startsWith('https://')) return /^sha256:[0-9a-f]{64}$/.test(release.digest || '');
   return release.exportOnly === false;
@@ -87,6 +113,7 @@ function flashImage() {
   const selected = selectedRelease();
   return curatedImages().find(image => {
     if (!image.direct || image.board !== byId('board').value) return false;
+    if (source() === 'library') return selectedSavedFirmware()?.cacheKey === image.cacheKey;
     if (source() === 'local') {
       return localFirmware?.route === 'remote' && localFirmware.board === image.board &&
         localFirmware.sha256 === image.sha256;
@@ -115,6 +142,8 @@ function flashRequirements(device, board, release) {
   if (!board) issues.push(['board', 'Choose a board.']);
   if (source() === 'local') {
     if (!localFirmware) issues.push(['pickLocal', 'Choose a local firmware file.']);
+  } else if (source() === 'library') {
+    if (board && !selectedSavedFirmware()) issues.push(['savedFirmware', 'Choose a saved firmware image.']);
   } else if (!source().startsWith('https://') && !byId('role').value) {
     if (board) issues.push(['role', 'Choose a firmware role.']);
   } else if (!release) {
@@ -126,6 +155,11 @@ function flashRequirements(device, board, release) {
 
 function prepareFlashSelection(device, release) {
   const local = source() === 'local' ? localFirmware : null;
+  const saved = source() === 'library' ? selectedSavedFirmware() : null;
+  if (saved) return {
+    device: device?.id ?? -1, board: byId('board').value, source: 'library', role: saved.role || '',
+    tag: saved.tag || '', name: saved.name, sha: saved.sha256, assetId: saved.cacheKey || ''
+  };
   return {
     device: device?.id ?? -1, board: byId('board').value, source: source(), role: byId('role').value,
     tag: local?.tag || release?.tag || '',
@@ -197,7 +231,10 @@ function buttons() {
   const offline = cached || found || ready;
   const needsWriteVerification = !generic && !ready &&
     (release?.appTag || release?.types?.includes('flash-update'));
-  byId('remoteFirmware').hidden = local;
+  const saved = source() === 'library';
+  byId('remoteFirmware').hidden = local || saved;
+  byId('savedFirmwareField').hidden = !saved;
+  if (saved) renderSavedFirmware();
   byId('localFirmwareField').hidden = !local;
   byId('roleField').hidden = generic;
   const alpha = sourceIsAlpha();
@@ -601,7 +638,7 @@ function loadVersions(refresh = false) {
   const board = byId('board').value;
   const role = byId('role').value;
   const generic = current.startsWith('https://');
-  const ready = current !== 'local';
+  const ready = current !== 'local' && current !== 'library';
   versionsLoading = Boolean(ready);
   const previous = refresh ? selectedRelease() : null;
   versionPreference = previous;
@@ -1114,6 +1151,7 @@ window.onRepositories = links => {
   for (const url of otaReleases.keys()) {
     if (!links.some(link => link.bootloader && link.url === url)) otaReleases.delete(url);
   }
+  addOption(selector, 'library', 'Saved firmware');
   addOption(selector, 'local', 'Local file');
   if (Array.from(selector.options).some(option => option.value === previous) && !(first && previous === 'local' && !localFirmware)) {
     selector.value = previous;
@@ -1471,6 +1509,7 @@ byId('repository').onchange = () => {
   renderSelectedDevice(true);
 };
 byId('role').onchange = () => { dfuWorkflowStatus = ''; loadVersions(); };
+byId('savedFirmware').onchange = buttons;
 byId('version').onchange = () => { dfuWorkflowStatus = ''; buttons(); };
 byId('versions').onclick = () => {
   Phone.refreshRepositoryMaturity?.();

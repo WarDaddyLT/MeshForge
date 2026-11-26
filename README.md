@@ -40,7 +40,7 @@ The built-in sources include MeshCore, SaveMeshcore, MeshCore-Solo, Meshcore-Sol
 
 Zygis and Hardened carry the GitHub topic `firmware-alpha`. MeshForge displays **Alpha** on these sources and uses it as the default for unqualified release tags. Explicit alpha, beta, or release-candidate tags label the individual file. GitHub’s prerelease flag marks other prereleases.
 
-The repository download cache is capped at **64 MiB**. The curated firmware cache keeps multiple versions within a separate 32 MiB limit. Remove saved files in the Library to free space. The Library identifies files with no published checksum. Those files can be downloaded for inspection or export. MeshForge checks published digests where available and validates the board profile and write layout before programming. A SHA-256 match establishes download integrity. Publisher-signature verification is outside the current release scope.
+The repository download cache is capped at **64 MiB**. The curated firmware cache keeps multiple versions within a separate 32 MiB limit. Remove saved files in the Library to free space. In **Flash**, choose **Saved firmware** to select a compatible offline file without a release lookup. The Library identifies files with no published checksum. Those files can be downloaded for inspection or export. MeshForge checks published digests where available and validates the board profile and write layout before programming. A SHA-256 match establishes download integrity. Publisher-signature verification is outside the current release scope.
 
 ## Build and install
 
