@@ -859,7 +859,7 @@ test('configured repositories appear on Flash while Settings manages the links',
   const second = 'https://github.com/example/bootloaders/releases';
   showRepositories([{url, builtIn: false}, {url: secondFirmware, builtIn: false},
     {url: second, bootloader: true, builtIn: false}]);
-  assert.deepEqual(element('repository').options.map(option => option.value), [url, secondFirmware, 'local']);
+  assert.deepEqual(element('repository').options.map(option => option.value), [url, secondFirmware, 'library', 'local']);
   assert.equal(element('repositoryList').options.length, 3);
   element('repository').value = url;
   element('repository').onchange();
@@ -990,6 +990,28 @@ test('Curated inventory keeps older offline releases selectable by their saved d
   element('flash').onclick();
   assert.equal(events.at(-1)[1].name, 'old.bin');
   assert.equal(events.at(-1)[1].sha, 'old-sha');
+});
+
+test('Flash can select an exact saved firmware image without a repository lookup', () => {
+  const {element, requests, events, showUsb, showBoards, showCuratedInventory} = load();
+  const board = 'LilyGo T-Echo Lite';
+  const name = 'cached-repeater.uf2';
+  showBoards([{name: board, type: 'nrf52', uf2Dfu: true, roles: [{id: 'repeater', title: 'Repeater'}]}]);
+  showUsb([{id: 42, name: 'UF2 drive', storage: true}]);
+  element('board').value = board;
+  element('board').onchange();
+  showCuratedInventory([{name, board, role: 'repeater', source: 'official', tag: 'repeater-v1.18.0',
+    sha256: 'saved-digest', cacheKey: 'exact-entry', exportOnly: false}]);
+  const before = requests.length;
+  element('repository').value = 'library';
+  element('repository').onchange();
+  assert.equal(requests.length, before);
+  assert.equal(element('savedFirmware').options.length, 2);
+  element('savedFirmware').value = '0';
+  element('savedFirmware').onchange();
+  element('flash').onclick();
+  assert.deepEqual(events.at(-1), ['installDfu', {device: 42, board, source: 'library',
+    tag: 'repeater-v1.18.0', role: 'repeater', name, sha: 'saved-digest', assetId: 'exact-entry'}]);
 });
 
 test('Library groups files by repository and version and uses compact file rows', () => {

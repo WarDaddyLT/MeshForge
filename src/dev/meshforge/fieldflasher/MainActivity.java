@@ -935,7 +935,7 @@ public final class MainActivity extends Activity {
                     values.optString("sha"), values.optString("assetId"));
             if (!catalogue.isNrf(selection.board()) || MeshCoreCatalogue.uf2Start(selection.board()) == 0 ||
                     !selection.name().toLowerCase(Locale.ROOT).endsWith(".uf2") ||
-                    !(Set.of("official", "save", "solo", "local").contains(selection.source()) ||
+                    !(Set.of("official", "save", "solo", "local", "library").contains(selection.source()) ||
                             selection.source().startsWith("https://"))) {
                 throw new IOException("The selected board and file require a supported UF2 application write method.");
             }
@@ -1200,6 +1200,8 @@ public final class MainActivity extends Activity {
                     !selection.sha().equals(image.details().optString("sha256"))) {
                 throw new IOException("Choose the local UF2 file again for this board.");
             }
+        } else if ("library".equals(selection.source())) {
+            image = resolveSavedUf2(selection);
         } else if (selection.source().startsWith("https://")) {
             if (!selection.sha().matches("[0-9a-f]{64}")) {
                 throw new IOException("This UF2 release has no published SHA-256.");
@@ -1229,6 +1231,31 @@ public final class MainActivity extends Activity {
         return image;
     }
 
+    private FirmwareLibrary.Image resolveSavedUf2(FirmwareSelection selection) throws Exception {
+        if (!selection.assetId().isEmpty()) {
+            var image = library.findCached(false, entry -> matchesSavedSelection(selection, entry) &&
+                    !entry.optBoolean("exportOnly"));
+            if (image != null) return image;
+        } else {
+            var files = repositories.downloads();
+            for (int i = 0; i < files.length(); i++) {
+                var file = files.getJSONObject(i);
+                if (!selection.sha().equals(file.optString("sha256")) || !selection.name().equals(file.optString("name")) ||
+                        !(file.optBoolean("local") || file.optBoolean("checksumPublished"))) continue;
+                var saved = repositories.loadLocal(selection.name(), selection.sha(), file.getLong("size"), library);
+                return new FirmwareLibrary.Image(saved.bytes(), new JSONObject(saved.details().toString())
+                        .put("board", selection.board()).put("tag", selection.tag()));
+            }
+        }
+        throw new IOException("The selected offline image is unavailable for this board.");
+    }
+
+    private static boolean matchesSavedSelection(FirmwareSelection selection, JSONObject entry) {
+        return selection.assetId().equals(entry.optString("cacheKey")) &&
+                selection.sha().equals(entry.optString("sha256")) && selection.board().equals(entry.optString("board")) &&
+                selection.name().equals(entry.optString("name")) && selection.tag().equals(entry.optString("tag"));
+    }
+
     private FirmwareLibrary.Image resolveFlashImage(FirmwareSelection selection) throws Exception {
         log.add("flash.resolve", "Resolving board=" + selection.board() + " source=" + selection.source() +
                 " role=" + selection.role() + " tag=" + selection.tag() + " name=" + selection.name());
@@ -1237,8 +1264,8 @@ public final class MainActivity extends Activity {
             log.add("flash.resolve", "Using exact saved application SHA-256 " + cached.details().optString("sha256"));
             return cached;
         }
-        if ("local".equals(selection.source())) {
-            throw new IOException("This local file has no verified direct-write plan for the selected board.");
+        if ("local".equals(selection.source()) || "library".equals(selection.source())) {
+            throw new IOException("The selected offline image has no verified direct-write plan for this board.");
         }
         if (selection.source().startsWith("https://")) {
             cacheRepositorySelection(selection);
@@ -1270,6 +1297,7 @@ public final class MainActivity extends Activity {
         String source = data.optString("source");
         String role = data.optString("role");
         if (!selection.board().equals(board) || !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) return false;
+        if ("library".equals(selection.source())) return matchesSavedSelection(selection, data);
         if ("local".equals(selection.source()) || selection.source().startsWith("https://")) {
             return selection.sha().matches("[0-9a-f]{64}") && selection.sha().equals(data.optString("sha256"));
         }
