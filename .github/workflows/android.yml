@@ -32,7 +32,7 @@ jobs:
           package-manager-cache: false
 
       - name: Run tests
-        run: node --test app/tests/*.test.mjs
+        run: node --test tests/*.test.mjs
 
       - name: Install Android SDK components
         run: |
@@ -40,10 +40,10 @@ jobs:
             "platforms;android-37.0" "build-tools;36.0.0" < <(yes)
 
       - name: Build and verify debug APK
-        run: ./app/build.sh
+        run: ./build.sh
 
       - name: Generate APK checksum
-        working-directory: app/out
+        working-directory: out
         run: sha256sum meshforge-field-flasher-debug.apk > SHA256SUMS.txt
 
       - name: Upload APK and checksum
@@ -51,7 +51,7 @@ jobs:
         with:
           name: meshforge-android-debug
           path: |
-            app/out/meshforge-field-flasher-debug.apk
-            app/out/SHA256SUMS.txt
+            out/meshforge-field-flasher-debug.apk
+            out/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
