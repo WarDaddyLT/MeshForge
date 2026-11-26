@@ -23,17 +23,15 @@ public final class MainActivity extends Activity {
     private static final String DIRECT_UPDATE_BOARD = MeshCoreCatalogue.M5;
     private static final String PERMISSION = "dev.meshforge.fieldflasher.USB_PERMISSION";
     private static final int EXPORT = 1;
-    private static final int READ_UF2_INFO = 2;
     private static final int SAVE_APP = 3;
     private static final int PICK_LOCAL_FIRMWARE = 4;
     private static final int PICK_LIBRARY_FIRMWARE = 5;
     private String localBoard;
     private volatile FirmwareLibrary.Image localImage;
     private ReleaseRepositories repositories;
-    private UsbDevice readingBootloader;
     private FirmwareLibrary.Image exportingImage;
     private volatile BootloaderInspection bootloaderInspection;
-    private record BootloaderInspection(UsbDevice device, BootloaderInfo info, String volumeId) {}
+    private record BootloaderInspection(UsbDevice device, BootloaderInfo info) {}
     private record DfuTransfer(FirmwareSelection selection, FirmwareLibrary.Image image) {}
     private volatile DfuTransfer pendingDfu;
     private boolean dfuTouchAttempted;
@@ -109,7 +107,6 @@ public final class MainActivity extends Activity {
                 if (inspected != null && inspected.device().equals(device)) inspection = null;
                 var bootloader = bootloaderInspection;
                 if (bootloader != null && bootloader.device().equals(device)) bootloaderInspection = null;
-                if (device != null && device.equals(readingBootloader)) readingBootloader = null;
                 if (device != null && device.getDeviceId() == pendingPermission) {
                     pendingPermission = -1;
                     if (pendingFlashPermission != null) {
@@ -378,7 +375,8 @@ public final class MainActivity extends Activity {
                         .put("storage", isMassStorage(device))
                         .put("bootloader", info == null ? JSONObject.NULL : new JSONObject()
                                 .put("version", info.version()).put("id", info.boardId()).put("status", info.status())
-                                .put("family", info.fixFamily())
+                                .put("family", info.fixFamily()).put("model", info.model()).put("softDevice", info.softDevice())
+                                .put("sharedBoardId", info.sharedBoardId())
                                 .put("boards", checkedBoards).put("fixes", checkedFixes)));
             } catch (JSONException error) {
                 failure("usb.inventory", error);
@@ -448,12 +446,14 @@ public final class MainActivity extends Activity {
                     connection.close();
                 }
                 if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("The USB device detached.");
-                var identity = isMassStorage(device) ? null : queryIdentity(device);
+                boolean storage = isMassStorage(device);
+                if (storage) inspectBootloader(device);
+                var identity = storage ? null : queryIdentity(device);
                 if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("The USB device detached.");
                 inspection = new Inspection(device, identity);
                 describe("connected descriptors", device);
                 publishDevice(identity != null ? "MeshCore device information read." :
-                        isMassStorage(device) ? "USB storage detected. Read INFO_UF2.TXT to check the bootloader." :
+                        storage ? "UF2 bootloader information read directly over USB." :
                         "USB device detected. Select the board manually if you know the exact model.");
             } catch (Exception error) {
                 failure("usb.connect", error);
@@ -1338,14 +1338,6 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request == READ_UF2_INFO) {
-            UsbDevice device = readingBootloader;
-            readingBootloader = null;
-            if (device != null && result == RESULT_OK && data != null && data.getData() != null) {
-                worker.execute(() -> readBootloader(device, data.getData()));
-            }
-            return;
-        }
         if (request == PICK_LOCAL_FIRMWARE) {
             String board = localBoard;
             localBoard = null;
@@ -1599,34 +1591,15 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void readBootloader(UsbDevice device, android.net.Uri uri) {
-        try {
-            var resolver = getContentResolver();
-            if (!"com.android.externalstorage.documents".equals(uri.getAuthority())) {
-                throw new IOException("Choose INFO_UF2.TXT from the radio's USB drive in Files.");
-            }
-            String document = android.provider.DocumentsContract.getDocumentId(uri);
-            int divider = document.indexOf(':');
-            if (divider <= 0 || !document.substring(0, divider).matches("(?i)[0-9a-f]{4}-[0-9a-f]{4}") ||
-                    !document.substring(divider + 1).equalsIgnoreCase("INFO_UF2.TXT") ||
-                    !device.equals(findDevice(device.getDeviceId())) || !isMassStorage(device)) {
-                throw new IOException("Choose INFO_UF2.TXT at the root of the connected radio's USB drive.");
-            }
-            long drives = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage).count();
-            if (drives != 1) throw new IOException("Connect one USB drive when checking its bootloader.");
-            try (var input = resolver.openInputStream(uri)) {
-                if (input == null) throw new IOException("The bootloader information file could not be opened.");
-                var info = BootloaderInfo.parse(new String(FirmwareLibrary.limited(input, 4096),
-                        java.nio.charset.StandardCharsets.US_ASCII));
-                if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("USB drive disconnected.");
-                bootloaderInspection = new BootloaderInspection(device, info, document.substring(0, divider));
-                log.add("bootloader", "INFO_UF2 id=" + info.boardId() + " version=" + info.version() +
-                        " otafix=" + info.status());
-                publishDevice("Bootloader information read.");
-            }
-        } catch (Exception error) {
-            failure("bootloader", error);
-            publishDevice(error.getMessage());
+    private void inspectBootloader(UsbDevice device) throws IOException {
+        long drives = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage).count();
+        if (drives != 1) throw new IOException("Connect only the radio’s UF2 drive before reading bootloader information.");
+        try (var storage = UsbMassStorage.open(usb, device, log)) {
+            var info = BootloaderInfo.parse(Uf2Volume.readInfo(storage, log));
+            if (!device.equals(findDevice(device.getDeviceId()))) throw new IOException("The UF2 drive disconnected.");
+            bootloaderInspection = new BootloaderInspection(device, info);
+            log.add("bootloader", "INFO_UF2 id=" + info.boardId() + " version=" + info.version() +
+                    " softDevice=" + info.softDevice() + " otafix=" + info.status());
         }
     }
 
@@ -1852,16 +1825,6 @@ public final class MainActivity extends Activity {
             });
         }
 
-        @JavascriptInterface public void readBootloader(int id) {
-            runOnUiThread(() -> {
-                UsbDevice device = findDevice(id);
-                if (device == null || !isMassStorage(device) || readingBootloader != null) return;
-                readingBootloader = device;
-                log.add("bootloader", "INFO_UF2 requested deviceId=" + id);
-                startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                        .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), READ_UF2_INFO);
-            });
-        }
         @JavascriptInterface public void installDfu(String selection) {
             runOnUiThread(() -> beginDfuTransfer(selection));
         }

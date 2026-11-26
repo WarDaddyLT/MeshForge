@@ -37,11 +37,7 @@ final class Uf2Volume {
                 " totalSectors=" + geometry.totalSectors() + " sectorsPerCluster=" + geometry.sectorsPerCluster() +
                 " clusterCount=" + geometry.clusterCount() + " dataStart=" + geometry.dataStart());
         byte[] fat = readFat(device, geometry, log);
-        DirectoryEntry info = findInfoFile(device, geometry, fat, log);
-        if (info == null) throw new IOException("The USB bootloader has no root INFO_UF2.TXT file.");
-        trace(log, "Found INFO_UF2.TXT firstCluster=" + info.firstCluster() + " bytes=" + info.size());
-        String text = readFile(device, geometry, fat, info, log);
-        trace(log, "Read INFO_UF2.TXT bytes=" + text.length());
+        String text = readInfo(device, geometry, fat, log);
 
         int requiredSectors = imageSize / 512;
         long[] destinations = new long[requiredSectors];
@@ -65,6 +61,22 @@ final class Uf2Volume {
         trace(log, "Sector plan complete allocatedSectors=" + written + " examinedClusters=" + examinedClusters +
                 " firstLba=" + destinations[0] + " lastLba=" + destinations[destinations.length - 1]);
         return new Plan(text, destinations);
+    }
+
+    static String readInfo(BlockDevice device, DiagnosticLog log) throws IOException {
+        Geometry geometry = mount(device, log);
+        return readInfo(device, geometry, readFat(device, geometry, log), log);
+    }
+
+    private static String readInfo(BlockDevice device, Geometry geometry, byte[] fat, DiagnosticLog log)
+            throws IOException {
+        DirectoryEntry info = findInfoFile(device, geometry, fat, log);
+        if (info == null) throw new IOException("The USB bootloader has no root INFO_UF2.TXT file.");
+        trace(log, "Found INFO_UF2.TXT firstCluster=" + info.firstCluster() + " bytes=" + info.size());
+        String text = readFile(device, geometry, fat, info, log);
+        trace(log, "Read INFO_UF2.TXT bytes=" + text.length());
+
+        return text;
     }
 
     private static Geometry mount(BlockDevice device, DiagnosticLog log) throws IOException {

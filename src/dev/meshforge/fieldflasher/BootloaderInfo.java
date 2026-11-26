@@ -3,7 +3,7 @@ package dev.meshforge.fieldflasher;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-record BootloaderInfo(String version, String boardId, String model) {
+record BootloaderInfo(String version, String boardId, String model, String softDevice) {
     private static final Pattern VERSION = Pattern.compile(
             "(?m)^UF2 Bootloader ([A-Za-z0-9][A-Za-z0-9._+-]{0,63})(?=\\s|$)");
     private static final Pattern OTAFIX = Pattern.compile(
@@ -13,7 +13,7 @@ record BootloaderInfo(String version, String boardId, String model) {
         var version = VERSION.matcher(text);
         String id = field(text, "Board-ID");
         if (!version.find() || id.isEmpty()) throw new IOException("Expected the radio's INFO_UF2.TXT file.");
-        return new BootloaderInfo(version.group(1), id, field(text, "Model"));
+        return new BootloaderInfo(version.group(1), id, field(text, "Model"), field(text, "SoftDevice"));
     }
 
     private static String field(String text, String label) {

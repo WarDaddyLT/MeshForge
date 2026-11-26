@@ -153,9 +153,8 @@
       <button id="flash" class="primary" aria-describedby="flashError"><img class="action-icon" src="sprite-hammer.png" alt="" width="22" height="22"> Flash</button>
     </section>
     <section id="bootloaderPanel" hidden><h2 class="wood-label">nRF UF2 / OTAFix</h2><p id="otaStatus" role="status"></p>
-      <p id="otaInfoHint" class="field-note" hidden>Select INFO_UF2.TXT from the root of the radio’s DFU drive to verify its board and bootloader.</p>
-      <div class="actions"><button id="readBootloader" disabled>Read UF2 bootloader info</button>
-        <button id="findOtaFixes" hidden>Check OTAFix repositories</button></div>
+      <p id="bootloaderDetails" class="field-note" role="status" hidden></p>
+      <div class="actions"><button id="findOtaFixes" hidden>Check OTAFix repositories</button></div>
       <div id="uf2DfuPanel" class="uf2-dfu-panel" hidden>
         <p id="dfuStatus" role="status"></p>
       </div>
