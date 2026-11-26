@@ -382,6 +382,54 @@ test('a custom UF2 with a published digest starts the selected board’s DFU flo
   assert.equal(selection.sha, sha);
 });
 
+test('Flash uses release metadata for early firmware warnings and prefers stable files', () => {
+  const {element, requests, showRepositories, showRepositoryAssets} = load();
+  const url = 'https://github.com/example/firmware/releases';
+  const file = (tag, prerelease = false) => ({tag, prerelease, id: tag, name: 'radio-' + tag + '.uf2', size: 512});
+  const latestRequest = () => requests.filter(([, source]) => source === url).at(-1)[0];
+  showRepositories([{url, builtIn: true}]);
+
+  showRepositoryAssets(latestRequest(), []);
+  assert.match(element('versionStatus').textContent, /No published release files/);
+  assert.equal(element('releaseWarning').hidden, true);
+
+  element('versions').onclick();
+  const alpha = file('v1.0.0-alpha.1');
+  showRepositoryAssets(latestRequest(), [alpha]);
+  assert.match(element('versionStatus').textContent, /prerelease firmware only/);
+  assert.match(element('version').options[0].textContent, /^Alpha ·/);
+  assert.equal(element('releaseWarning').textContent, 'Alpha firmware. Use it for testing.');
+
+  element('repository').onchange();
+  showRepositoryAssets(latestRequest(), [alpha, file('preview', true), file('v1.0.0')]);
+  assert.equal(element('version').value, '2');
+  assert.equal(element('releaseWarning').hidden, true);
+  assert.equal(element('versionStatus').textContent, '');
+  element('version').value = '1';
+  element('version').onchange();
+  assert.match(element('releaseWarning').textContent, /^Prerelease firmware/);
+});
+
+test('Library warns when a repository only offers early firmware and clears the warning for mixed releases', () => {
+  const {element, requests, showRepositories, showRepositoryAssets} = load();
+  const url = 'https://github.com/example/firmware/releases';
+  const latestRequest = () => requests.filter(([, source]) => source === url).at(-1)[0];
+  const beta = {tag: 'v1.0.0-beta2', id: '101', name: 'radio-beta.uf2', size: 512,
+    sourceLabel: 'example/firmware'};
+  const stable = {tag: 'v1.0.0', id: '102', name: 'radio.uf2', size: 512,
+    sourceLabel: 'example/firmware'};
+  showRepositories([{url}]);
+  element('showLibrary').onclick();
+  showRepositoryAssets(latestRequest(), [beta]);
+  assert.match(element('libraryResults').options[0].options[0].textContent, /Prerelease firmware only/);
+  element('refreshLibrary').onclick();
+  showRepositoryAssets(latestRequest(), [beta, stable]);
+  const repository = element('libraryResults').options[0];
+  assert.equal(repository.options[0].textContent, 'example/firmware');
+  const betaVersion = repository.options.find(row => row.options[0]?.textContent === beta.tag);
+  assert.match(betaVersion.options[1].options[0].options[1].textContent, /^Beta ·/);
+});
+
 test('configured repository defaults to catalogue-matched firmware but keeps off-target assets selectable', () => {
   const {element, requests, showBoards, showRepositories, showRepositoryAssets} = load();
   const board = 'Demo Board';
@@ -541,7 +589,7 @@ test('Library lists remote releases and identifies downloads without a published
   assert.match(groups[0].options[1].options[0].textContent, /v1\.2\.0/);
   const row = groups[0].options[1].options[1].options[0];
   assert.equal(row.options[0].textContent, 'demo_board_repeater-v1.uf2');
-  assert.equal(row.options[1].textContent, 'No published checksum');
+  assert.equal(row.options[1].textContent, 'Prerelease · No published checksum');
   assert.equal(row.options[2].options[0].textContent, 'Download');
   assert.equal(row.options[2].options[0].disabled, false);
   row.options[2].options[0].onclick();
