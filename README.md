@@ -61,7 +61,7 @@ The build pins esptool-js 0.6.0, usb-serial-for-android 3.10.0 at `a8b9ecc7d32ce
 ## Project goals
 
 - Verify that a radio restarts into the expected firmware after writing, with separate transfer and runtime results.
-- Finish Wio UF2 validation and add ESP write profiles one exact board at a time.
+- Make ESP32 serial and nRF52 UF2 flashing work across compatible hardware. Validate each path on radios we have access to and publish the actual results. Check the selected image, bootloader and flash layout before each write. [ESP32](https://github.com/WarDaddyLT/MeshForge/issues/2) · [nRF52](https://github.com/WarDaddyLT/MeshForge/issues/3)
 - Make several verified firmware versions available offline and selectable directly from Flash.
 - Validate the existing Configurator form and diagnostics export on physical radios and the phone.
 - Improve read-only bootloader checks and document tested recovery paths.

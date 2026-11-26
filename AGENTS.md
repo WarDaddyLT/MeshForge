@@ -10,7 +10,7 @@ MeshForge is an offline-capable Android USB field flasher and Configurator for M
 - The Redmi Note 14 Pro is the primary Android host. The owner reported successful ThinkNode M5 app-only and stock T‑Echo Lite UF2 updates on earlier development builds. The Wio Tracker L1 E‑Ink enumerated as UF2 on macOS. Full Wio write and reboot validation is pending.
 - The ESP writer implements vetted M5 application updates. Implemented UF2 application profiles cover the stock T‑Echo and T‑Echo Lite, Wio Tracker L1 Pro and E‑Ink, and RAK WisMesh 1W Booster. Keep implemented paths and individually verified hardware results distinct in user-facing documentation.
 - The main destinations are **Configurator**, **Flash**, **Library**, and **Settings**. **Flash Progress** is a child of Flash. Configurator is the launch screen and works with an existing repeater or room server. Prioritize the existing form for radio parameters, admin passwords, and node information. Keep map and coordinate-specific UX outside the current feature scope.
-- Prioritize runtime verification after flashing, Wio validation, direct bootloader inspection, reliable offline storage and selection, and focused physical validation of Configurator and diagnostics. Track remaining work in the GitHub backlog.
+- Prioritize runtime verification after flashing, reliable ESP32 serial and nRF52 UF2 paths, direct bootloader inspection, offline firmware selection, and focused physical validation of Configurator and diagnostics. Use available radios as representative test hardware and track remaining work in the GitHub backlog.
 
 ## Repository and delivery
 
@@ -30,8 +30,8 @@ MeshForge is an offline-capable Android USB field flasher and Configurator for M
 ## USB programming and Configurator
 
 - Use Android USB Host and the pinned serial and ESP libraries. Treat discovery, permission, layout check, write, verification, reset, and reconnect as separate phases. Serialize operations and recheck device attachment before writing.
-- For M5, check the actual ESP32-S3 chip, flash size, security state, partition layout, and boot selection. Write only the approved application range and verify written MD5. Respect secure boot and flash encryption. Add new ESP profiles only with exact hardware layout and board-specific test evidence.
-- For UF2, validate the family, application address range and matched bootloader identity. Handle manual entry when automatic entry fails. Report transfer delivery separately from runtime verification. A shared bootloader ID may span different radio or display variants.
+- Generalize the ESP32 serial writer around the detected chip, flash size, security state, partition layout, and boot selection. Verify the exact board and image before writing the approved application range, then verify written MD5. Respect secure boot and flash encryption. Test on available representative hardware and record which chip variants and layouts passed.
+- Generalize the nRF52 UF2 writer around its detected bootloader and verified image layout. Check the UF2 family and address range, bootloader identity, and available SoftDevice metadata. Report serial-only DFU separately and handle manual entry where needed. A shared bootloader ID may span radio or display variants. Record transfer delivery, runtime verification, and the hardware actually tested.
 - Use the official board-specific OTAFix guidance. Show package availability, selection, and installation as distinct states. The current workflow uses `INFO_UF2.TXT` and package export. Keep the reported status unknown when identity or version is ambiguous.
 - In Configurator, use firmware capability checks and send only changed settings. Recheck the attached radio and verify writes by readback or acknowledgement as appropriate. Preserve credential privacy and the ability to inspect existing settings independently of flashing.
 
