@@ -1,85 +1,73 @@
 # MeshForge for Android
 
-Choose a board and browse compatible firmware from MeshCore Flasher, SaveMeshcore, and MeshCore-Solo. The app can program approved ThinkNode M5 app images over its WCH USB serial bridge and save verified firmware for other supported boards. Use an Android 13 or newer phone with USB host support. This repository contains the Android app. Radio firmware is obtained from external releases and verified on the phone.
+MeshForge is a USB field flasher and Configurator for MeshCore radios. Use an Android 13 or newer phone with USB host support to find firmware, save it for offline use, program a supported radio, or change settings on an existing repeater or room server. Use a USB data cable or OTG adapter.
 
-[Download the latest Android APK](https://github.com/WarDaddyLT/MeshForge/releases/latest).
+**Release status.** The published APK is **v0.1.16**. The capabilities below describe the current `main` branch, which you can build locally. The next build is a limited beta candidate.
 
-[Visual and UX guide](docs/MeshForge_VISUAL_GUIDE.md)
+[Download a published APK](https://github.com/WarDaddyLT/MeshForge/releases) · [See the open backlog](https://github.com/WarDaddyLT/MeshForge/issues?q=is%3Aissue+is%3Aopen) · [Visual and UX guide](docs/MeshForge_VISUAL_GUIDE.md)
 
-## AI-Assisted Development Declaration
+## What MeshForge does
 
-Details of our AI usage are internal operational matters and are not subject to public disclosure.
+| Screen | Purpose |
+| --- | --- |
+| **Configurator** | Read and save radio parameters, admin and guest passwords, and node information on a repeater or room server over USB. Available settings depend on the firmware. Community radio presets work offline. |
+| **Flash** | Choose the USB target, board, firmware source or local file, role, and release. **Flash** opens progress, stages the selected file from storage or downloads it if needed, then asks for confirmation before writing. |
+| **Firmware Library** | Browse releases by repository and version. Import local firmware, download files for offline use, and export or remove saved repository copies. |
+| **Settings** | Manage firmware and OTAFix repositories and export retained diagnostic logs through Android Files. |
 
-<img src="docs/permit.gif" alt="Not to worry. I have a permit." />
+## USB flashing support on `main`
 
-## Build
+| Target | Implemented write path | Hardware evidence |
+| --- | --- | --- |
+| Elecrow ThinkNode M5 | ESP32-S3 app-only update for mapped MeshCore Bluetooth companion, USB companion, and repeater images, plus the mapped SaveMeshcore repeater image. Checks flash layout and verifies written bytes with MD5. | Owner reported a successful M5 app update on an earlier development build. |
+| LilyGo T‑Echo Lite | Stock bootloader, application UF2 over USB. | Owner reported a successful UF2 update on an earlier development build. |
+| Wio Tracker L1 Pro and L1 E‑Ink | Separate board profiles for application UF2 over USB. | The L1 E‑Ink enumerated as a UF2 drive on macOS. End-to-end Wio flashing and reboot are pending. |
+| LilyGo T‑Echo and RAK WisMesh 1W Booster | Application UF2 over USB for the listed profiles. For the RAK profile, confirm the RAK3401 module, RAK13302 radio, and S140 6.1.1 for the selected image. | End-to-end validation pending. |
+| LilyGo T‑Deck and XIAO ESP32‑S3 Wio | Browse and export matching files. Use the board’s programming procedure for installation. | Direct ESP profiles are planned. |
+
+The M5 writer updates the existing application partition. **Merged BIN** is a full-install format you can save or export. **UF2 sent** means the image reached the matched bootloader. Check that the radio restarts into the expected firmware and its settings are available. Firmware variants are separate targets, including the Wio e‑paper and 1 W variants and the T‑Echo Lite KeyShield build. [Board validation and support matrix](https://github.com/WarDaddyLT/MeshForge/issues/31)
+
+## Typical workflows
+
+- **Configure a radio.** Connect an existing MeshCore repeater or room server and tap **Read settings**. Edit the supported fields and tap **Save settings**. MeshForge sends the changed values and checks readback where possible. For the write-only admin password, it checks the radio’s acknowledgement. Restart the radio after changing LoRa parameters. [Configurator reference](https://github.com/meshcore-dev/config.meshcore.io/tree/aff42ad8ef2b332f24d644ff6a783f8272a88ff2) · [Radio preset data](https://api.meshcore.nz/api/v1/config)
+- **Flash firmware.** Select the exact board, role and file. If USB identification is ambiguous, choose the board manually. Grant USB access if prompted. Follow **Flash Progress** for manual bootloader entry when needed. A local M5 BIN can use direct programming when it matches a verified cached image. A local application UF2 or a repository UF2 with a published checksum can use a supported board profile once it passes validation.
+- **Check OTAFix.** **Flash** lists available board-matched packages. Enter UF2 mode and tap **Read UF2 bootloader info** to select `INFO_UF2.TXT`. The app tracks package selection and reported installation separately. Install an exported fix with the board’s bootloader procedure.
+- **Recover or report a problem.** Open **Settings → Diagnostics → Export log**. Logs are retained on the phone across restarts. Include the board, firmware role and version, APK version, and stage that failed. Use a known compatible image and the manufacturer’s recovery procedure if the radio does not restart.
+
+## Firmware sources and offline use
+
+The built-in sources include MeshCore, SaveMeshcore, MeshCore-Solo, Meshcore-Solo-Zygis, MeshCore-Hardened, and an OTAFix repository. Add or remove public GitHub repositories and release URLs in **Settings**. MeshForge uses the official catalogue for board and role mappings and reads GitHub Releases for repository files. [Official MeshCore flasher](https://github.com/meshcore-dev/flasher.meshcore.io) · [Meshcore-Solo-Zygis](https://github.com/WarDaddyLT/Meshcore-Solo-Zygis) · [MeshCore-Hardened](https://github.com/WarDaddyLT/MeshCore-Hardened)
+
+Zygis and Hardened carry the GitHub topic `firmware-alpha`. MeshForge displays **Alpha** on these sources and uses it as the default for unqualified release tags. Explicit alpha, beta, or release-candidate tags label the individual file. GitHub’s prerelease flag marks other prereleases.
+
+The repository download cache is capped at **64 MiB**. The curated firmware cache keeps the latest direct-write and exportable images. The Library identifies files with no published checksum. Those files can be downloaded for inspection or export. MeshForge checks published digests where available and validates the board profile and write layout before programming. A SHA-256 match establishes download integrity. Publisher-signature verification is outside the current release scope.
+
+## Build and install
 
 From the repository root:
 
 ```sh
 node --test tests/*.test.mjs
 ./build.sh
+adb install -r out/meshforge-field-flasher-debug.apk
 ```
 
-The script uses Android SDK Platform `android-37.0`, Build Tools `36.0.0`, Android Studio's JDK, Node.js, npm, Git and zip. Set `ANDROID_HOME` and `JAVA_HOME` for other locations. It uses the SDK tools directly and packages a locally signed debug APK in `out/`. Only Android build tools are needed. To keep using the same debug signing identity in a checkout created before the move, copy the local `app/out/debug.keystore` to `out/debug.keystore` before building.
+The build uses Android SDK Platform `android-37.0`, Build Tools `36.0.0`, Java 17 or newer, Node.js, npm, Git, and zip. Set `ANDROID_HOME` and `JAVA_HOME` for other locations. A checkout created before the root move can retain its local debug signing identity by copying `app/out/debug.keystore` to `out/debug.keystore` before building. [Android build workflow](.github/workflows/android.yml) · [USB host test harness](tests/usb-e2e/README.md)
 
-Libraries are Espressif esptool-js 0.6.0, usb-serial-for-android 3.10.0 at `a8b9ecc7d32ce6df749c44a2b9e8cb208ac30609`, and esbuild 0.25.10 for the JavaScript bundle. The WebView serial bridge pattern follows esp-flash-android revision `c4036ace9d2f5526e3535d1ac8bfb8ac3bafc23d`. The APK includes the MIT and Apache-2.0 licenses. The build generates the serial library's compile-time configuration and omits its AndroidX source annotation.
+GitHub Actions builds a test APK and checksum on pull requests and pushes to `main`. CI artifacts use a fresh debug key. Use the APK under **Releases** for an in-place upgrade of the published app. Releases use the maintainer’s signing key.
 
-### GitHub Actions
+The build pins esptool-js 0.6.0, usb-serial-for-android 3.10.0 at `a8b9ecc7d32ce6df749c44a2b9e8cb208ac30609`, and esbuild 0.25.10. The APK bundles third-party license notices, including the reference for the WebView serial bridge.
 
-[Android build](.github/workflows/android.yml) runs the tests and APK build on pushes to `main` and pull requests. To run it manually, open **Actions → Android build → Run workflow**. Download `meshforge-android-debug` from a successful run for the APK and its SHA-256 checksum.
+## Project goals
 
-Each CI run signs with its own debug key. Android requires the same signing key for upgrades, so use the APK under **Releases** to update a release installation. The workflow uploads test artifacts only. Release publishing uses the maintainer's signing key.
+- Verify that a radio restarts into the expected firmware after writing, with separate transfer and runtime results.
+- Finish Wio UF2 validation and add ESP write profiles one exact board at a time.
+- Make several verified firmware versions available offline and selectable directly from Flash.
+- Validate the existing Configurator form and diagnostics export on physical radios and the phone.
+- Improve read-only bootloader checks and document tested recovery paths.
 
-## Use
+## AI-Assisted Development Declaration
 
-MeshForge opens to **Configurator**. The bottom bar also opens **Flash**, **Library**, and **Settings**. The app runs in portrait. Settings shows repositories and diagnostics together. Android Back returns from Flash Progress to Flash and from a bottom-bar destination to Configurator.
+Details of our AI usage are internal operational matters and are not subject to public disclosure.
 
-### Configure a radio over USB
-
-1. Connect a radio already running MeshCore repeater or room-server firmware, including one you just flashed. On **Configurator**, choose the USB device and tap **Read settings**. Grant Android USB access when asked. The radio must report a supported role and public key over the USB CLI.
-2. Edit the supported fields for name, coordinates, owner info, passwords, room access, forwarding, announcements, radio parameters, access control, regions and advanced options. The app bundles the community radio presets for offline use. Device information shows the role, firmware version, clock and public key. Viewing the private key requires opening a protected Android dialog.
-3. Tap **Save settings** and confirm. MeshForge rechecks the device and its current settings before writing. It verifies saved settings by readback or, for the write-only admin password, the radio’s acknowledgement. If a save stops early, read settings again to see what was applied. Restart the radio after saving new LoRa parameters.
-
-Configurator field behavior follows [the MeshCore configurator](https://github.com/meshcore-dev/config.meshcore.io/tree/aff42ad8ef2b332f24d644ff6a783f8272a88ff2). Radio preset data comes from [the MeshCore configuration API](https://api.meshcore.nz/api/v1/config).
-
-### Flash firmware
-
-1. Connect a radio with a USB-C data cable or an OTG adapter. In **Flash**, **Find USB devices** reports all attachments Android exposes. **Read device info** requests USB access and tries to identify MeshCore USB companion, repeater, or room-server firmware. A Bluetooth-only companion can expose a USB programming bridge while its firmware stays silent. Choose its exact board manually in that case.
-2. On **Flash**, select a firmware repository, role and release, then tap **Flash**. To save firmware for later, tap **Download firmware**. Choose **Local file** to open firmware in Android Files. Choose the board manually whenever USB identification is ambiguous. Firmware browsing and downloading work without a connected radio. The release asset's SHA-256 is checked before caching. The app retains the last direct-write image and last exportable image for offline use.
-   For SaveMeshcore, **Show all release files** shows the full release by filename, including merged BIN, DFU ZIP, HEX, and checksums. A board choice filters to exact repeater build targets matched by the official catalogue. Assets without an app programming path can be exported after SHA-256 verification.
-3. On supported radios, **Check flash layout** checks the bootloader, flash size, partition table and app slot and reports the result in **Flash**. **Flash** highlights missing inputs and opens **Flash Progress**. Progress loads the selected image from the phone or downloads and verifies it as needed. MeshForge requests Android USB access and asks for confirmation before writing. The confirmation shows the selected board and any different model the radio reports. Progress checks the actual layout before writing and verifies the flash MD5 afterward. Check that the radio boots and that settings and identity are available afterward. SaveMeshcore installs a repeater role. Its settings migration has not been verified.
-4. On a board with a supported UF2 application profile, choose a board-matched MeshCore UF2 release and tap **Flash**. Confirm the image, then follow Flash Progress to enter UF2 mode if the radio does not switch automatically. MeshForge checks the bootloader’s board ID before sending the UF2. **UF2 sent** reports delivery. Verify that the radio restarts into MeshCore. Other UF2 files can be exported for the board’s own update procedure. ESP app BIN exports require a separate ESP flasher and the target’s known application layout.
-5. **OTAFix** on Flash shows possible packages from MeshCore’s board catalogue and configured OTAFix repositories. Select a package and download it for the board’s bootloader installation procedure. To check the installed version, enter UF2 mode and choose **Check installed OTAFix**, then select the INFO_UF2.TXT file on the radio’s USB drive. A matching bootloader that reports OTAFix shows as installed. Package selection shows as selected.
-6. **Export log** under Diagnostics on **Settings** saves retained diagnostics, including after the app restarts. The app retains four segments of roughly 2 MiB each. Events record timings, responses and protocol sizes. Firmware payloads and private radio data are omitted.
-
-| Board | MeshCore Flasher | SaveMeshcore | MeshCore-Solo |
-| --- | --- | --- | --- |
-| ThinkNode M5 | Bluetooth companion, USB companion, and repeater direct. Other matched ESP app BINs export. | Repeater direct after matching the published layout | |
-| LilyGo T-Deck | ESP app BIN export | Repeater ESP app BIN export | |
-| XIAO ESP32-S3 Wio | ESP app BIN export | Repeater ESP app BIN export | |
-| Wio Tracker L1 Pro | UF2 export | Repeater UF2 export | OLED companion UF2 export |
-| Wio Tracker L1 EINK | UF2 export | | |
-| LilyGo T-Echo and T-Echo Lite | UF2 export | Repeater UF2 export | |
-| RAK WisMesh 1W Booster (RAK3401 + RAK13302) | UF2 export | Repeater UF2 export | |
-
-For the RAK profile, confirm the RAK13302 radio module and S140 6.1.1 before copying an app UF2. USB identification can recognize the RAK3401 core. It cannot confirm the LoRa module.
-
-The stock T-Echo Lite profile excludes Solo's KeyShield build. The Wio L1 Pro profile excludes the 1W and EINK images. Direct updates for the M5 firmware profile require a supported USB serial connection, a 4 MiB ESP32-S3, the approved partition table, and a known app0 boot selection. The flash confirmation identifies a reported role change or an unknown current role. Full installs, unattended updates and direct bootloader writes are unavailable.
-
-The v1.18.0 M5 USB companion and official repeater app files matched the SHA-256 digests published by MeshCore. Both matched the app bytes at `0x10000` in their paired merged images and contained the expected partition table in those merged images. [Companion release](https://github.com/meshcore-dev/MeshCore/releases/tag/companion-v1.18.0) · [Repeater release](https://github.com/meshcore-dev/MeshCore/releases/tag/repeater-v1.18.0)
-
-Board and OTAFix metadata come from the official flasher's MIT-licensed community entries at revision `45a5257bf792b11a83f4c51c18d4f312addfb677`. Official versions use the live flasher feed. The two forks use their GitHub Releases APIs with exact rules for known board assets, verified against SaveMeshcore `repeater-v1.18.0-savemesh.1` and MeshCore-Solo `v2.3.0`. The nRF bootloader IDs were checked against OTAFix source revision `3a75482e17680169edd86760d122a154b1620c4d`. A locally verified GitHub asset digest establishes download integrity. The app does not verify firmware signatures.
-
-## Repositories and local files
-
-Manage public GitHub repository and release URLs on **Settings**. MeshCore, SaveMeshcore, MeshCore-Solo, [Meshcore-Solo-Zygis](https://github.com/WarDaddyLT/Meshcore-Solo-Zygis), [MeshCore-Hardened](https://github.com/WarDaddyLT/MeshCore-Hardened), and an OTAFix repository are included initially. Firmware sources appear on **Flash**. Flash and Library mark early firmware from release tags, the GitHub prerelease flag, or a repository’s `firmware-alpha` topic. The topic marks the source even before it publishes files and gives unqualified releases the Alpha label. Use the **OTAFix** category for repositories that publish fixes. Library can download a repository file with no published checksum and labels it accordingly. Direct flashing requires a verified image for the selected board.
-
-**Library** groups release files by repository and version. It marks saved files as available offline and shows imported firmware under **Local files**. It shows active downloads and lets you export files or remove individual repository downloads. The repository file cache is capped at 64 MiB. The curated firmware cache keeps the latest direct-write and exportable image.
-
-Choose local firmware on **Flash**. MeshForge shows the file size and SHA-256. An M5 application binary can use direct programming when it matches the previously verified cached image. An application UF2 from a local file or a repository with a published checksum can be flashed using a supported board profile once its family and address range pass validation. Verify the actual hardware variant before copying a UF2 to its bootloader drive.
-
-
-## Recovery
-
-Keep a known compatible firmware image and the M5's original PC programming path available. After a failed write, save the log and restore the correct image over the existing USB serial bridge. Preserve the target's role and settings when a compatible app-only repair is available.
+<img src="docs/permit.gif" alt="Not to worry. I have a permit." />
