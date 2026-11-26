@@ -45,6 +45,7 @@ public final class MainActivity extends Activity {
     private WebView view;
     private volatile float systemTopInset;
     private DiagnosticLog log;
+    private FlashJournal journal;
     private FirmwareLibrary library;
     private MeshCoreCatalogue catalogue;
     private UsbManager usb;
@@ -152,6 +153,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         log = new DiagnosticLog(getFilesDir());
+        journal = new FlashJournal(getSharedPreferences("flash-journal", MODE_PRIVATE));
         usb = getSystemService(UsbManager.class);
         repositories = new ReleaseRepositories(this);
         log.add("app", "Started version=0.1.16 Android=" + Build.VERSION.RELEASE + " API=" +
@@ -544,6 +546,8 @@ public final class MainActivity extends Activity {
         runtimePermission = null;
         log.add("flash.runtime", result.status() + " " + result.message());
         js("window.onRuntimeVerification(" + JSONObject.quote(result.status()) + "," + JSONObject.quote(result.message()) + ")");
+        if (result.status().equals("confirmed")) journal.clear();
+        publishRecovery();
     }
 
     private MeshCoreIdentity.Result queryIdentity(UsbDevice device) {
@@ -863,9 +867,24 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void publishRecovery() {
+        try {
+            js("window.onFlashRecovery(" + journal.recovery() + ")");
+        } catch (JSONException error) {
+            failure("flash.recovery", error);
+        }
+    }
+
+    private void cancelFlash() {
+        journal.clear();
+        publishRecovery();
+        js("window.onFlashCancelled()");
+    }
+
     private void flashFailed(String message) {
         log.add("flash.outcome", "Failed before or during flash: " + message);
         log.endUsbSession(false, message);
+        publishRecovery();
         js("window.onComplete(false," + JSONObject.quote(message) + ")");
     }
 
@@ -883,12 +902,14 @@ public final class MainActivity extends Activity {
             var selection = new FirmwareSelection(values.optInt("device", -1), values.getString("board"), values.getString("source"),
                     values.optString("role"), values.optString("tag"), values.getString("name"),
                     values.optString("sha"), values.optString("assetId"));
+            journal.start(selection.board(), selection.name(), selection.sha(), false);
             log.add("flash.selection", "deviceId=" + selection.deviceId() + " board=" + selection.board() +
                     " source=" + selection.source() + " role=" + selection.role() + " tag=" + selection.tag() +
                     " name=" + selection.name() + " sha256=" + selection.sha());
             worker.execute(() -> {
                 try {
                     var image = resolveFlashImage(selection);
+                    journal.advance(FlashJournal.Stage.STAGED, image.details().optString("sha256"));
                     log.add("flash.prepare", "Resolved direct image bytes=" + image.bytes().length +
                             " sha256=" + image.details().optString("sha256"));
                     view.post(() -> beginFlashReview(new FlashReview(device, false, image)));
@@ -919,24 +940,28 @@ public final class MainActivity extends Activity {
                 throw new IOException("The selected board and file require a supported UF2 application write method.");
             }
             if (pendingDfu != null) throw new IOException("A UF2 update is already waiting for the radio.");
+            journal.start(selection.board(), selection.name(), selection.sha(), true);
             log.add("dfu.selection", "deviceId=" + selection.deviceId() + " board=" + selection.board() +
                     " source=" + selection.source() + " role=" + selection.role() + " tag=" + selection.tag() +
                     " name=" + selection.name() + " sha256=" + selection.sha());
             worker.execute(() -> {
                 try {
                     FirmwareLibrary.Image image = resolveDfuImage(selection);
+                    journal.advance(FlashJournal.Stage.STAGED, image.details().optString("sha256"));
                     log.add("dfu.prepare", "Verified UF2 bytes=" + image.bytes().length +
                             " sha256=" + image.details().optString("sha256"));
                     view.post(() -> confirmDfuTransfer(new DfuTransfer(selection, image)));
                 } catch (Exception error) {
                     failure("dfu.prepare", error);
                     log.endUsbSession(false, error.getMessage());
+                    publishRecovery();
                     js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
                 }
             });
         } catch (Exception error) {
             failure("dfu.prepare", error);
             log.endUsbSession(false, error.getMessage());
+            publishRecovery();
             js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
         }
     }
@@ -963,7 +988,7 @@ public final class MainActivity extends Activity {
 
     private void cancelDfuConfirmation() {
         log.endUsbSession(false, "UF2 update canceled before writing");
-        js("window.onFlashCancelled()");
+        cancelFlash();
     }
 
     private void continueDfuTransfer() {
@@ -1159,6 +1184,7 @@ public final class MainActivity extends Activity {
         dfuWriting = false;
         permissionForDfu = false;
         log.endUsbSession(false, message);
+        publishRecovery();
         js("window.onDfuTransfer(" + JSONObject.quote(message) + ",true,false)");
     }
 
@@ -1388,14 +1414,15 @@ public final class MainActivity extends Activity {
                             .setTitle("Check flash layout")
                             .setMessage("Selected board: " + targetBoard + ".\n\n" +
                                     "The radio will restart into its bootloader for the chip and flash layout check, then restart again.")
-                            .setNegativeButton("Cancel", (dialog, button) -> js("window.onComplete(false,'Operation canceled.')"))
-                            .setOnCancelListener(dialog -> js("window.onComplete(false,'Operation canceled.')"))
+                            .setNegativeButton("Cancel", (dialog, button) -> js("window.onComplete(false,'Layout check canceled.')"))
+                            .setOnCancelListener(dialog -> js("window.onComplete(false,'Layout check canceled.')"))
                             .setPositiveButton("Check layout", (dialog, button) -> start.run())
                             .show());
                 }
             } catch (Exception error) {
                 failure("plan", error);
-                js("window.onComplete(false," + JSONObject.quote(error.getMessage()) + ")");
+                if (probeOnly) js("window.onComplete(false," + JSONObject.quote(error.getMessage()) + ")");
+                else flashFailed(error.getMessage());
             }
         });
     }
@@ -1506,8 +1533,10 @@ public final class MainActivity extends Activity {
                 FirmwareLibrary.validateUf2(image, MeshCoreCatalogue.uf2Start(board));
                 log.add("dfu.install", "Image checks passed board=" + board + " name=" + name +
                         " bytes=" + image.length + " start=0x" + Integer.toHexString(MeshCoreCatalogue.uf2Start(board)));
+                journal.advance(FlashJournal.Stage.PREPARED, null);
                 long[] sectors = plan.sectors();
                 int current = 0;
+                journal.advance(FlashJournal.Stage.WRITING, null);
                 while (current < sectors.length) {
                     int count = 1;
                     if (current < sectors.length - 1) {
@@ -1526,6 +1555,7 @@ public final class MainActivity extends Activity {
                     }
                 }
             }
+            journal.advance(FlashJournal.Stage.DELIVERED, null);
             pendingDfu = null;
             dfuWriting = false;
             log.add("dfu.install", "Sent UF2 directly over USB board=" + board + " bootloader=" + info.boardId() +
@@ -1540,6 +1570,7 @@ public final class MainActivity extends Activity {
             dfuWriting = false;
             failure("dfu.install", error);
             log.endUsbSession(false, error.getMessage());
+            publishRecovery();
             js("window.onDfuTransfer(" + JSONObject.quote(error.getMessage()) + ",true,false)");
         }
     }
@@ -1693,6 +1724,7 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface public void ready() {
             log.add("app", "Local UI ready");
+            publishRecovery();
             try (var input = getAssets().open("meshcore-radio-presets.json")) {
                 js("window.onRadioPresets(" + new JSONArray(new String(input.readAllBytes(),
                         java.nio.charset.StandardCharsets.UTF_8)) + ")");
@@ -1978,6 +2010,23 @@ public final class MainActivity extends Activity {
             var image = staged;
             return image == null ? "" : Base64.encodeToString(image.bytes(), Base64.NO_WRAP);
         }
+        @JavascriptInterface public void flashMilestone(String milestone) {
+            if (!approved || staged == null) return;
+            FlashJournal.Stage stage = switch (milestone) {
+                case "prepared" -> FlashJournal.Stage.PREPARED;
+                case "writing" -> FlashJournal.Stage.WRITING;
+                case "delivered" -> FlashJournal.Stage.DELIVERED;
+                default -> null;
+            };
+            if (stage != null) journal.advance(stage, null);
+        }
+        @JavascriptInterface public void dismissRecovery() {
+            runOnUiThread(() -> {
+                if (approved || pendingDfu != null || runtimeCheck != null) return;
+                journal.clear();
+                publishRecovery();
+            });
+        }
         @JavascriptInterface public boolean finished(boolean success, String reason) {
             var image = staged;
             var original = flashRuntimeOriginal;
@@ -1994,6 +2043,7 @@ public final class MainActivity extends Activity {
                 view.post(() -> startRuntime(original, initial, image.details()));
                 return true;
             }
+            if (image != null) publishRecovery();
             return false;
         }
         @JavascriptInterface public void diagnostic(String stage, String message) { log.add(stage, message); }
