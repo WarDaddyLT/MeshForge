@@ -17,11 +17,11 @@ Details of our AI usage are internal operational matters and are not subject to 
 From the repository root:
 
 ```sh
-node --test app/tests/*.test.mjs
-./app/build.sh
+node --test tests/*.test.mjs
+./build.sh
 ```
 
-The script uses Android SDK Platform `android-37.0`, Build Tools `36.0.0`, Android Studio's JDK, Node.js, npm, Git and zip. Set `ANDROID_HOME` and `JAVA_HOME` for other locations. It uses the SDK tools directly and packages a locally signed debug APK in `app/out/`. Only Android build tools are needed.
+The script uses Android SDK Platform `android-37.0`, Build Tools `36.0.0`, Android Studio's JDK, Node.js, npm, Git and zip. Set `ANDROID_HOME` and `JAVA_HOME` for other locations. It uses the SDK tools directly and packages a locally signed debug APK in `out/`. Only Android build tools are needed. To keep using the same debug signing identity in a checkout created before the move, copy the local `app/out/debug.keystore` to `out/debug.keystore` before building.
 
 Libraries are Espressif esptool-js 0.6.0, usb-serial-for-android 3.10.0 at `a8b9ecc7d32ce6df749c44a2b9e8cb208ac30609`, and esbuild 0.25.10 for the JavaScript bundle. The WebView serial bridge pattern follows esp-flash-android revision `c4036ace9d2f5526e3535d1ac8bfb8ac3bafc23d`. The APK includes the MIT and Apache-2.0 licenses. The build generates the serial library's compile-time configuration and omits its AndroidX source annotation.
 

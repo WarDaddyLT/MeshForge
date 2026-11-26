@@ -13,7 +13,7 @@ The stock ThinkNode M5 and XIAO ESP32-S3 Wio may be USB targets. Their stock por
 
 ## Repository and delivery
 
-- Keep Android sources, resources, tests and the APK build under `app/`. Keep board metadata and compatibility checks in the app. Read upstream documentation and releases separately.
+- Keep the Android build and manifest at the repository root, with sources in `src/`, resources in `res/`, assets in `assets/`, and tests in `tests/`. Keep board metadata and compatibility checks in the app. Read upstream documentation and releases separately.
 - Produce a reproducible Android debug APK and concise build, install, usage, recovery and diagnostics documentation. Pin tool and library versions where possible and preserve third-party licenses. Test on the connected Android phone when the owner makes it available.
 - Ask before erasing storage, reflashing a physical device, changing its configuration, or other irreversible hardware actions unless already explicitly authorized for that target. A phone installation permission does not authorize writing a target. Use the M5 as the initial spare target with the owner's approval. Protect private device data.
 - No pushes or published builds without permission. Keep firmware backups, log exports, generated APKs and signing material out of Git. Never fabricate results. Record the exact device, build, image digest and verification evidence.
