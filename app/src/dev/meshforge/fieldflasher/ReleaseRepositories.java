@@ -100,7 +100,37 @@ final class ReleaseRepositories {
             boolean builtIn = existing != null && existing.optBoolean("builtIn");
             links.put(key, item(link, entry.optBoolean("bootloader"), builtIn));
         }
+        for (JSONObject entry : links.values()) {
+            if (!entry.optBoolean("bootloader")) {
+                entry.put("alpha", preferences.getBoolean(alphaKey(parse(entry.getString("url"))), false));
+            }
+        }
         return new JSONArray(links.values());
+    }
+
+    private static String alphaKey(Link link) {
+        return "alpha:" + link.repository().toLowerCase(Locale.ROOT);
+    }
+
+    boolean alphaTopic(Link link, FirmwareLibrary library, boolean refresh) throws Exception {
+        String key = alphaKey(link);
+        long now = System.currentTimeMillis();
+        long checked = preferences.getLong(key + ":checked", 0);
+        if (!refresh && checked > 0 && now >= checked && now - checked < 30 * 60_000L) {
+            return preferences.getBoolean(key, false);
+        }
+        var result = new JSONObject(new String(library.request("https://api.github.com/repos/" +
+                link.repository() + "/topics", API_HOST, 16 * 1024), StandardCharsets.UTF_8));
+        var topics = result.getJSONArray("names");
+        boolean alpha = false;
+        for (int i = 0; i < topics.length(); i++) {
+            if ("firmware-alpha".equals(topics.getString(i))) {
+                alpha = true;
+                break;
+            }
+        }
+        preferences.edit().putBoolean(key, alpha).putLong(key + ":checked", now).apply();
+        return alpha;
     }
 
     private Link configured(String raw) throws Exception {
