@@ -1544,9 +1544,10 @@ public final class MainActivity extends Activity {
                 info = BootloaderInfo.parse(plan.info());
                 log.add("dfu.bootloader", "Parsed INFO_UF2 boardId=" + info.boardId() + " model=" + info.model() +
                         " version=" + info.version() + " status=" + info.status() + " plannedSectors=" + plan.sectorCount());
-                if (!info.matchesBoard(board)) {
-                    throw new IOException("The connected bootloader reports " + info.boardId() +
-                            ". The selected firmware is for " + board + ".");
+                int appStart = MeshCoreCatalogue.uf2Start(board);
+                info.requireApplicationCompatibility(board, appStart);
+                if (info.softDevice().isEmpty()) {
+                    log.add("dfu.bootloader", "SoftDevice not reported; retaining the curated application layout.");
                 }
                 JSONObject details = transfer.image().details();
                 String name = details.getString("name");
@@ -1554,9 +1555,9 @@ public final class MainActivity extends Activity {
                         !name.toLowerCase(Locale.ROOT).endsWith(".uf2")) {
                     throw new IOException("The verified firmware does not have a safe UF2 filename.");
                 }
-                FirmwareLibrary.validateUf2(image, MeshCoreCatalogue.uf2Start(board));
+                FirmwareLibrary.validateUf2(image, appStart);
                 log.add("dfu.install", "Image checks passed board=" + board + " name=" + name +
-                        " bytes=" + image.length + " start=0x" + Integer.toHexString(MeshCoreCatalogue.uf2Start(board)));
+                        " bytes=" + image.length + " start=0x" + Integer.toHexString(appStart));
                 journal.advance(FlashJournal.Stage.PREPARED, null);
                 long[] sectors = plan.sectors();
                 int current = 0;

@@ -11,6 +11,7 @@ public final class Uf2VolumeTest {
     public static void main(String[] args) throws Exception {
         recognizesStockTEchoLiteBootloader();
         readsBootloaderInfoWithoutPlanningAWrite();
+        validatesReportedSoftDeviceAgainstTheApplicationLayout();
         plansWritesInFreeFat12Clusters();
         findsPartitionedFat16Volume();
         supportsFat32RootCluster();
@@ -33,6 +34,18 @@ public final class Uf2VolumeTest {
         equal(INFO, Uf2Volume.readInfo(fat12(0, 1000), null), "read-only bootloader information");
         var info = BootloaderInfo.parse(INFO + "SoftDevice: S140 7.3.0\r\n");
         equal("S140 7.3.0", info.softDevice(), "reported SoftDevice");
+    }
+
+    private static void validatesReportedSoftDeviceAgainstTheApplicationLayout() throws Exception {
+        var wio = BootloaderInfo.parse("UF2 Bootloader 0.9.2\nBoard-ID: TRACKER L1\nSoftDevice: S140 7.3.0\n");
+        wio.requireApplicationCompatibility("Seeed Studio Wio Tracker L1 EINK", 0x27000);
+        try {
+            wio.requireApplicationCompatibility("Seeed Studio Wio Tracker L1 EINK", 0x26000);
+            throw new AssertionError("Expected a SoftDevice mismatch");
+        } catch (IOException error) {
+            if (!error.getMessage().contains("requires S140 6.x")) throw error;
+        }
+        BootloaderInfo.parse(INFO).requireApplicationCompatibility("LilyGo T-Echo", 0x26000);
     }
 
     private static void plansWritesInFreeFat12Clusters() throws Exception {

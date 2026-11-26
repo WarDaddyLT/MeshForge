@@ -54,6 +54,24 @@ record BootloaderInfo(String version, String boardId, String model, String softD
         };
     }
 
+    void requireApplicationCompatibility(String board, int appStart) throws IOException {
+        if (!matchesBoard(board)) {
+            throw new IOException("The connected bootloader reports " + boardId +
+                    ". The selected firmware is for " + board + ".");
+        }
+        if (softDevice.isEmpty()) return;
+        var reported = Pattern.compile("(?i)^S140[ \t]+([0-9]+)[.][0-9]+[.][0-9]+$").matcher(softDevice);
+        int expectedMajor = switch (appStart) {
+            case 0x26000 -> 6;
+            case 0x27000 -> 7;
+            default -> 0;
+        };
+        if (expectedMajor == 0 || !reported.matches() || !reported.group(1).equals(Integer.toString(expectedMajor))) {
+            throw new IOException("The bootloader reports SoftDevice " + softDevice +
+                    ". This application layout requires S140 " + expectedMajor + ".x.");
+        }
+    }
+
     boolean sharedBoardId() {
         return boardId.equals("TRACKER L1") || boardId.equals("nRF52840-TEcho-v1") ||
                 boardId.equals("WisBlock-RAK4631-Board") || boardId.startsWith("nRF52840-SeeedXiao");
