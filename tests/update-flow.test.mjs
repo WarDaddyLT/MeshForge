@@ -85,6 +85,7 @@ function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption 
     showUsb: devices => environment.window.onUsb(devices, ''),
     showDfuTransfer: (...args) => environment.window.onDfuTransfer(...args),
     showRuntimeVerification: environment.window.onRuntimeVerification,
+    showFlashRecovery: environment.window.onFlashRecovery,
     showRepeater: (...args) => environment.window.onRepeater(...args),
     showPresets: presets => environment.window.onRadioPresets(presets),
     showBoards: boards => environment.window.onBoards(boards),
@@ -539,6 +540,20 @@ test('DFU delivery and startup verification have separate outcomes', () => {
   showRuntimeVerification('mismatch', 'Unexpected firmware version.');
   assert.equal(element('flash').disabled, false);
   assert.match(element('runtimeStatus').textContent, /^Startup mismatch/);
+});
+
+test('Recovery distinguishes interruption before writing, during writing and after delivery', () => {
+  const {element, showFlashRecovery} = load();
+  const record = {board: 'T-Echo Lite', name: 'radio.uf2', sha: 'abc', uf2: true};
+  showFlashRecovery({...record, stage: 'STAGED'});
+  assert.match(element('recoveryMessage').textContent, /Writing had not started/);
+  showFlashRecovery({...record, stage: 'WRITING'});
+  assert.match(element('recoveryMessage').textContent, /Enter the radio’s UF2 bootloader again/);
+  assert.match(element('recoveryImage').textContent, /SHA-256 abc/);
+  showFlashRecovery({...record, stage: 'DELIVERED'});
+  assert.match(element('recoveryMessage').textContent, /Firmware was sent/);
+  showFlashRecovery(null);
+  assert.equal(element('recoveryCard').hidden, true);
 });
 
 test('Flash skips DFU-entry guidance and folder-picker handoff when a UF2 drive is already connected', () => {

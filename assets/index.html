@@ -110,6 +110,12 @@
   </div>
 
   <div id="firmwarePage" hidden>
+    <section id="recoveryCard" hidden>
+      <h2 class="wood-label">Last flash</h2>
+      <p id="recoveryMessage" role="status"></p>
+      <p id="recoveryImage" class="field-note"></p>
+      <button id="dismissRecovery">Dismiss</button>
+    </section>
     <div id="connectionBanner" class="connection-banner" role="status" data-state="waiting">
       <span class="connection-icon" aria-hidden="true"><img src="sprite-bee.png" alt="" width="38" height="38">
         <img src="sprite-bee-connected.png" alt="" width="38" height="38"></span>
@@ -211,6 +217,7 @@
         <li id="stageVerify">Verify firmware <span></span></li>
         <li id="stageReset">Reset device <span></span></li>
       </ol>
+      <p id="progressRecovery" class="field-note" role="status" hidden></p>
       <p id="runtimeStatus" class="field-note" role="status" hidden></p>
       <p id="progressNotice" class="field-note">Keep the USB cable connected during this operation.</p>
     </section>

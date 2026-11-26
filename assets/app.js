@@ -140,6 +140,8 @@ function openFlashProgress(selection, dfu = false) {
   byId('progressOutcome').hidden = true;
   byId('progressOutcome').textContent = '';
   byId('runtimeStatus').hidden = true;
+  byId('progressRecovery').hidden = true;
+  byId('recoveryCard').hidden = true;
   byId('stageDownload').hidden = true;
   byId('stageWrite').hidden = false;
   byId('stageVerify').hidden = dfu;
@@ -654,6 +656,28 @@ function waitForRuntime() {
   busy = true;
   buttons();
 }
+
+window.onFlashRecovery = record => {
+  const card = byId('recoveryCard');
+  const progress = byId('progressRecovery');
+  card.hidden = !record;
+  progress.hidden = !record;
+  if (!record) return;
+  const steps = {
+    PREPARING: 'Firmware preparation stopped before writing.',
+    STAGED: 'Firmware was staged. Writing had not started.',
+    PREPARED: 'The target checks passed. Writing had not started.',
+    WRITING: record.uf2 ?
+      'The write began and delivery was unconfirmed. Enter the radio’s UF2 bootloader again and retry the same board-matched image.' :
+      'The write began and verification did not finish. Enter the board’s ROM bootloader and retry the same board-matched app update.',
+    DELIVERED: 'Firmware was sent. Check that the radio starts and reports the expected firmware before trying another write.'
+  };
+  const message = (steps[record.stage] || steps.PREPARING) + ' Export the log from Settings → Diagnostics if the problem persists.';
+  byId('recoveryMessage').textContent = message;
+  byId('recoveryImage').textContent = [record.board, record.name, record.sha && 'SHA-256 ' + record.sha]
+    .filter(Boolean).join(' · ');
+  progress.textContent = message;
+};
 
 window.onRuntimeVerification = (result, message) => {
   const labels = {confirmed: 'Startup verified', mismatch: 'Startup mismatch', unconfirmed: 'Startup unconfirmed'};
@@ -1334,13 +1358,16 @@ window.startFlash = async (id, image, probeOnly) => {
     logCommands(loader);
     await preflight(loader, image);
     if (!probeOnly) {
+      Phone.flashMilestone?.('prepared');
       note('image', 'Reading exact verified staged image from app storage');
       const bytes = Uint8Array.from(atob(Phone.image()), byte => byte.charCodeAt(0));
       note('image', 'Staged image decoded bytes=' + bytes.length + ' expectedBytes=' + image.size);
       if (bytes.length !== image.size) throw new Error('The approved staged image is unavailable.');
+      Phone.flashMilestone?.('writing');
       writing = true;
       note('flash.algorithm', 'Write phase started');
       await writeImage(loader, image, bytes);
+      Phone.flashMilestone?.('delivered');
       verified = true;
       note('flash.algorithm', 'Write phase and checksum verification passed');
     }
@@ -1377,6 +1404,7 @@ window.startFlash = async (id, image, probeOnly) => {
   }
 };
 
+byId('dismissRecovery').onclick = () => Phone.dismissRecovery();
 byId('scan').onclick = () => { Phone.scan(); refreshLog(); };
 byId('device').onchange = () => renderSelectedDevice();
 byId('connect').onclick = () => {
