@@ -83,7 +83,8 @@ function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption 
   ]);
   return {events, traces, element, requests, back: environment.window.goBack,
     showUsb: devices => environment.window.onUsb(devices, ''),
-    showDfuTransfer: (message, complete, success) => environment.window.onDfuTransfer(message, complete, success),
+    showDfuTransfer: (...args) => environment.window.onDfuTransfer(...args),
+    showRuntimeVerification: environment.window.onRuntimeVerification,
     showRepeater: (...args) => environment.window.onRepeater(...args),
     showPresets: presets => environment.window.onRadioPresets(presets),
     showBoards: boards => environment.window.onBoards(boards),
@@ -528,6 +529,16 @@ test('Flash opens progress for nRF UF2 and reports the terminal transfer outcome
   assert.equal(element('progressOutcome').textContent, 'Flash failed');
   assert.equal(element('progressCard').attributes.get('data-outcome'), 'failure');
   assert.equal(element('progressStatus').textContent, failed);
+});
+
+test('DFU delivery and startup verification have separate outcomes', () => {
+  const {element, showDfuTransfer, showRuntimeVerification} = load();
+  showDfuTransfer('UF2 sent.', true, true, true);
+  assert.equal(element('flash').disabled, true);
+  assert.match(element('runtimeStatus').textContent, /waiting for the radio/);
+  showRuntimeVerification('mismatch', 'Unexpected firmware version.');
+  assert.equal(element('flash').disabled, false);
+  assert.match(element('runtimeStatus').textContent, /^Startup mismatch/);
 });
 
 test('Flash skips DFU-entry guidance and folder-picker handoff when a UF2 drive is already connected', () => {

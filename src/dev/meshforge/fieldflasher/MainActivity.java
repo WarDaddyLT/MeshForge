@@ -61,6 +61,11 @@ public final class MainActivity extends Activity {
     private record FirmwareSelection(int deviceId, String board, String source, String role, String tag, String name,
                                      String sha, String assetId) {}
     private FlashReview pendingFlashPermission;
+    private record RuntimeCheck(UsbDevice original, Set<UsbDevice> initial, JSONObject image, long deadline) {}
+    private RuntimeCheck runtimeCheck;
+    private UsbDevice runtimePermission;
+    private volatile UsbDevice flashRuntimeOriginal;
+    private volatile Set<UsbDevice> flashRuntimeDevices = Set.of();
     private int usbScan;
     private boolean permissionForRepeater;
     private volatile boolean repeaterBusy;
@@ -86,7 +91,12 @@ public final class MainActivity extends Activity {
                 log.add("permission", "Completed granted=" + granted);
                 var flash = pendingFlashPermission;
                 pendingFlashPermission = null;
-                if (flash != null) {
+                if (runtimePermission != null) {
+                    var candidate = runtimePermission;
+                    runtimePermission = null;
+                    if (granted && candidate.equals(device) && runtimeCheck != null) probeRuntime(runtimeCheck, device);
+                    else finishRuntime(runtimeCheck, new FirmwareRuntime.Result("unconfirmed", "USB access was declined."));
+                } else if (flash != null) {
                     if (granted && flash.device().equals(device)) prepareFlash(flash);
                     else flashFailed("USB permission was declined or the selected device changed.");
                 } else if (permissionForDfu) {
@@ -109,6 +119,7 @@ public final class MainActivity extends Activity {
                 if (bootloader != null && bootloader.device().equals(device)) bootloaderInspection = null;
                 if (device != null && device.getDeviceId() == pendingPermission) {
                     pendingPermission = -1;
+                    if (device.equals(runtimePermission)) runtimePermission = null;
                     if (pendingFlashPermission != null) {
                         pendingFlashPermission = null;
                         flashFailed("The selected USB device disconnected.");
@@ -419,7 +430,10 @@ public final class MainActivity extends Activity {
             pendingPermission = -1;
             permissionForRepeater = false;
             failure("permission", error);
-            if (pendingFlashPermission != null) {
+            if (runtimePermission != null) {
+                runtimePermission = null;
+                finishRuntime(runtimeCheck, new FirmwareRuntime.Result("unconfirmed", "Could not request USB access after reset."));
+            } else if (pendingFlashPermission != null) {
                 pendingFlashPermission = null;
                 flashFailed("Could not request USB access for flashing.");
             } else if (permissionForDfu) {
@@ -474,6 +488,62 @@ public final class MainActivity extends Activity {
         boolean nativeEsp = device.getVendorId() == 0x303a && device.getProductId() == 0x1001;
         return nativeEsp || driver instanceof Ch34xSerialDriver || driver instanceof Cp21xxSerialDriver ||
                 driver instanceof FtdiSerialDriver ? driver : null;
+    }
+
+    private void startRuntime(UsbDevice original, Set<UsbDevice> initial, JSONObject image) {
+        if (isDestroyed() || isFinishing()) return;
+        var check = new RuntimeCheck(original, initial, image, SystemClock.elapsedRealtime() + 20_000);
+        runtimeCheck = check;
+        view.postDelayed(() -> tryRuntime(check), 1_000);
+        view.postDelayed(() -> finishRuntime(check, new FirmwareRuntime.Result("unconfirmed",
+                "No verifiable MeshCore response over USB. Check the running firmware on the radio.")), 20_000);
+    }
+
+    private void tryRuntime(RuntimeCheck check) {
+        if (runtimeCheck != check || runtimePermission != null || isDestroyed()) return;
+        var candidates = usb.getDeviceList().values().stream()
+                .filter(device -> !isMassStorage(device) && serialDriver(device) != null)
+                .filter(device -> device.equals(check.original()) || !check.initial().contains(device))
+                .toList();
+        if (candidates.size() != 1 || pendingPermission >= 0) {
+            view.postDelayed(() -> tryRuntime(check), 800);
+            return;
+        }
+        var device = candidates.get(0);
+        if (!usb.hasPermission(device)) {
+            runtimePermission = device;
+            requestUsbPermission(device, false);
+            return;
+        }
+        probeRuntime(check, device);
+    }
+
+    private void probeRuntime(RuntimeCheck check, UsbDevice device) {
+        worker.execute(() -> {
+            var identity = device.equals(findDevice(device.getDeviceId())) ? queryIdentity(device) : null;
+            view.post(() -> {
+                if (runtimeCheck != check) return;
+                if (identity == null || !device.equals(findDevice(device.getDeviceId()))) {
+                    if (SystemClock.elapsedRealtime() < check.deadline()) view.postDelayed(() -> tryRuntime(check), 800);
+                    return;
+                }
+                var details = check.image();
+                String board = catalogue == null ? null : catalogue.match(identity.model());
+                String expectedVersion = FirmwareRuntime.version(details.optString("tag"));
+                if (expectedVersion.isEmpty()) expectedVersion = FirmwareRuntime.version(details.optString("name"));
+                finishRuntime(check, FirmwareRuntime.compare(details.optString("board"), details.optString("role"),
+                        expectedVersion, board == null ? "" : board, identity.role(), identity.version()));
+            });
+        });
+    }
+
+    private void finishRuntime(RuntimeCheck check, FirmwareRuntime.Result result) {
+        if (check == null || runtimeCheck != check) return;
+        runtimeCheck = null;
+        if (runtimePermission != null && pendingPermission == runtimePermission.getDeviceId()) pendingPermission = -1;
+        runtimePermission = null;
+        log.add("flash.runtime", result.status() + " " + result.message());
+        js("window.onRuntimeVerification(" + JSONObject.quote(result.status()) + "," + JSONObject.quote(result.message()) + ")");
     }
 
     private MeshCoreIdentity.Result queryIdentity(UsbDevice device) {
@@ -1300,6 +1370,8 @@ public final class MainActivity extends Activity {
                         js("window.onComplete(false,'The attached device changed.')");
                         return;
                     }
+                    flashRuntimeOriginal = device;
+                    flashRuntimeDevices = Set.copyOf(usb.getDeviceList().values());
                     approvedDevice = device;
                     staged = image;
                     approved = true;
@@ -1404,6 +1476,7 @@ public final class MainActivity extends Activity {
     }
 
     private void writeDfuTransfer(DfuTransfer transfer, UsbDevice device) {
+        var initial = Set.copyOf(usb.getDeviceList().values());
         try {
             long driveCount = usb.getDeviceList().values().stream().filter(MainActivity::isMassStorage).count();
             log.add("dfu.install", "Write preconditions driveCount=" + driveCount + " selectedDevicePresent=" +
@@ -1458,7 +1531,10 @@ public final class MainActivity extends Activity {
             log.add("dfu.install", "Sent UF2 directly over USB board=" + board + " bootloader=" + info.boardId() +
                     " size=" + image.length + " sha256=" + transfer.image().details().getString("sha256"));
             log.endUsbSession(true, "UF2 blocks delivered to verified bootloader; await device install/reboot");
-            js("window.onDfuTransfer('UF2 sent to the matched bootloader. Keep the cable connected and check that the radio restarts into MeshCore.',true,true)");
+            js("window.onDfuTransfer('UF2 sent to the matched bootloader.',true,true,true)");
+            var details = new JSONObject(transfer.image().details().toString())
+                    .put("tag", transfer.selection().tag()).put("role", transfer.selection().role());
+            view.post(() -> startRuntime(device, initial, details));
         } catch (Exception error) {
             pendingDfu = null;
             dfuWriting = false;
@@ -1902,13 +1978,23 @@ public final class MainActivity extends Activity {
             var image = staged;
             return image == null ? "" : Base64.encodeToString(image.bytes(), Base64.NO_WRAP);
         }
-        @JavascriptInterface public void finished(boolean success, String reason) {
+        @JavascriptInterface public boolean finished(boolean success, String reason) {
+            var image = staged;
+            var original = flashRuntimeOriginal;
+            var initial = flashRuntimeDevices;
+            flashRuntimeOriginal = null;
+            flashRuntimeDevices = Set.of();
             log.add("job", "Completed success=" + success + " " + reason);
             log.endUsbSession(success, reason);
             closePort("job ended");
             staged = null;
             approved = false;
             approvedDevice = null;
+            if (success && image != null && original != null) {
+                view.post(() -> startRuntime(original, initial, image.details()));
+                return true;
+            }
+            return false;
         }
         @JavascriptInterface public void diagnostic(String stage, String message) { log.add(stage, message); }
         @JavascriptInterface public String logTail() {

@@ -139,6 +139,7 @@ function openFlashProgress(selection, dfu = false) {
   byId('progressCard').removeAttribute('data-outcome');
   byId('progressOutcome').hidden = true;
   byId('progressOutcome').textContent = '';
+  byId('runtimeStatus').hidden = true;
   byId('stageDownload').hidden = true;
   byId('stageWrite').hidden = false;
   byId('stageVerify').hidden = dfu;
@@ -646,6 +647,24 @@ function completeFlashProgress(success, message, outcome) {
   }
   refreshLog();
 }
+function waitForRuntime() {
+  const status = byId('runtimeStatus');
+  status.hidden = false;
+  status.textContent = 'Startup check: waiting for the radio to reconnect over USB…';
+  busy = true;
+  buttons();
+}
+
+window.onRuntimeVerification = (result, message) => {
+  const labels = {confirmed: 'Startup verified', mismatch: 'Startup mismatch', unconfirmed: 'Startup unconfirmed'};
+  const status = byId('runtimeStatus');
+  status.hidden = false;
+  status.textContent = (labels[result] || labels.unconfirmed) + ' · ' + message;
+  busy = false;
+  buttons();
+  refreshLog();
+};
+
 window.onComplete = completeFlashProgress;
 window.onFlashCancelled = () => {
   busy = false;
@@ -690,12 +709,13 @@ window.onAssetStatus = message => {
   else byId('otaJob').textContent = message;
   refreshLog();
 };
-window.onDfuTransfer = (message, complete = false, success = false) => {
+window.onDfuTransfer = (message, complete = false, success = false, runtimePending = false) => {
   dfuWorkflowStatus = message;
   byId('dfuStatus').textContent = message;
   if (complete) {
     if (success && activePage === 'progress') progressStage('stageWrite', message);
     completeFlashProgress(success, message, success ? 'UF2 sent' : '');
+    if (runtimePending) waitForRuntime();
     return;
   }
   busy = true;
@@ -1329,7 +1349,7 @@ window.startFlash = async (id, image, probeOnly) => {
     await loader.after('hard_reset');
     note('reset', 'Hard reset command completed');
     result = probeOnly ? 'Probe passed. Chip and layout match. Reset sent.' :
-      'Flash checksum verified. Reset sent. Confirm the radio boots into MeshCore.';
+      'Flash checksum verified. Reset sent.';
     success = true;
   } catch (error) {
     note('flash.algorithm', 'Exception caught writing=' + writing + ' verified=' + verified +
@@ -1351,8 +1371,9 @@ window.startFlash = async (id, image, probeOnly) => {
     }
     note('flash.outcome', 'success=' + success + ' elapsedMs=' + Math.round(performance.now() - started) +
       ' result=' + result);
-    Phone.finished(success, 'elapsedMs=' + Math.round(performance.now() - started) + ' ' + result);
+    const runtimePending = Phone.finished(success, 'elapsedMs=' + Math.round(performance.now() - started) + ' ' + result);
     window.onComplete(success, result);
+    if (runtimePending) waitForRuntime();
   }
 };
 
