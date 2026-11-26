@@ -4,7 +4,7 @@ MeshForge is a USB field flasher and Configurator for MeshCore radios. Use an An
 
 **Release status.** The published APK is **v0.1.16**. The capabilities below describe the current `main` branch, which you can build locally. The next build is a limited beta candidate.
 
-[Download a published APK](https://github.com/WarDaddyLT/MeshForge/releases) · [See the open backlog](https://github.com/WarDaddyLT/MeshForge/issues?q=is%3Aissue+is%3Aopen) · [Visual and UX guide](docs/MeshForge_VISUAL_GUIDE.md)
+[Download a published APK](https://github.com/WarDaddyLT/MeshForge/releases) · [See the open backlog](https://github.com/WarDaddyLT/MeshForge/issues?q=is%3Aissue+is%3Aopen) · [Visual and UX guide](docs/MeshForge_VISUAL_GUIDE.md) · [Next beta notes](docs/next-release-notes.md)
 
 ## What MeshForge does
 
@@ -48,6 +48,7 @@ From the repository root:
 
 ```sh
 node --test tests/*.test.mjs
+./tests/run-jvm-tests.sh
 ./build.sh
 adb install -r out/meshforge-field-flasher-debug.apk
 ```

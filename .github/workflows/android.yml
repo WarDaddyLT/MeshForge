@@ -39,6 +39,9 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
             "platforms;android-37.0" "build-tools;36.0.0" < <(yes)
 
+      - name: Run JVM verification suites
+        run: ./tests/run-jvm-tests.sh
+
       - name: Build and verify debug APK
         run: ./build.sh
 
