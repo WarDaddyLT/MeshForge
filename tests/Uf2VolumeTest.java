@@ -10,6 +10,7 @@ public final class Uf2VolumeTest {
 
     public static void main(String[] args) throws Exception {
         recognizesStockTEchoLiteBootloader();
+        readsBootloaderInfoWithoutPlanningAWrite();
         plansWritesInFreeFat12Clusters();
         findsPartitionedFat16Volume();
         supportsFat32RootCluster();
@@ -26,6 +27,12 @@ public final class Uf2VolumeTest {
         var original = BootloaderInfo.parse(INFO);
         equal(true, original.matchesBoard("LilyGo T-Echo"), "original T-Echo bootloader");
         equal(false, original.matchesBoard("LilyGo T-Echo Lite"), "original ID rejected for Lite");
+    }
+
+    private static void readsBootloaderInfoWithoutPlanningAWrite() throws Exception {
+        equal(INFO, Uf2Volume.readInfo(fat12(0, 1000), null), "read-only bootloader information");
+        var info = BootloaderInfo.parse(INFO + "SoftDevice: S140 7.3.0\r\n");
+        equal("S140 7.3.0", info.softDevice(), "reported SoftDevice");
     }
 
     private static void plansWritesInFreeFat12Clusters() throws Exception {

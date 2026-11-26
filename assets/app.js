@@ -202,6 +202,7 @@ function buttons() {
     offline ? 'Available in Firmware Library for export.' :
     release && generic ? 'A repository file can be saved for offline use. Direct USB flashing requires a verified board and image match.' : '';
   byId('connect').disabled = !device || busy;
+  byId('connect').textContent = device?.storage ? 'Read UF2 bootloader info' : 'Read device info';
   byId('device').disabled = busy;
   byId('probe').hidden = !device?.flashSerial || board !== directUpdateBoard;
   byId('probe').disabled = byId('probe').hidden || !device.allowed || busy || downloading;
@@ -219,8 +220,6 @@ function buttons() {
   byId('version').disabled = busy || !versionList.length;
   byId('export').disabled = busy;
   byId('show').disabled = busy;
-  byId('readBootloader').disabled = busy || !device?.storage;
-  byId('otaInfoHint').hidden = !device?.storage;
   byId('pickLocal').disabled = busy || downloading;
   byId('saveLocal').hidden = localFirmware?.route !== 'uf2' || localFirmware.board !== board;
   for (const {button} of Object.values(pages)) if (button) byId(button).disabled = busy || repeaterBusy;
@@ -239,7 +238,13 @@ function otaFamily(filename) {
 function renderBootloader(device, board, role) {
   const entry = catalogue.find(item => item.name === board);
   const info = device?.bootloader;
-  const applicable = entry?.type === 'nrf52' || Boolean(device?.storage && !entry);
+  const applicable = entry?.type === 'nrf52' || Boolean(device?.storage);
+  const details = byId('bootloaderDetails');
+  details.hidden = !device?.storage;
+  details.textContent = info ? [info.model, info.id && 'Board ID ' + info.id,
+    info.version && 'Bootloader ' + info.version, info.softDevice && 'SoftDevice ' + info.softDevice,
+    info.sharedBoardId && 'Board ID shared by multiple variants'].filter(Boolean).join(' · ') :
+    'UF2 storage detected. Read UF2 bootloader info to check the board and version.';
   byId('bootloaderPanel').hidden = !applicable;
   const release = selectedRelease();
   const selectedUf2 = isDfuSelection(release, board);
@@ -1415,10 +1420,6 @@ byId('fetch').onclick = () => {
   }
   beginDownload(release, 'firmware');
   Phone.download(byId('board').value, byId('role').value, source(), release.tag, release.name);
-};
-byId('readBootloader').onclick = () => {
-  const device = selectedDevice();
-  if (device?.storage) Phone.readBootloader(device.id);
 };
 byId('otaPackage').onchange = () => {
   otaPackageKey = byId('otaPackage').value;
