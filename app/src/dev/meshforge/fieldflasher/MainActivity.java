@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private boolean permissionForDfu;
     private volatile boolean dfuWriting;
     private final java.util.concurrent.ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ExecutorService repositoryMetadataWorker = Executors.newSingleThreadExecutor();
     private final ByteArrayOutputStream incoming = new ByteArrayOutputStream(32768);
     private WebView view;
     private volatile float systemTopInset;
@@ -1576,7 +1577,26 @@ public final class MainActivity extends Activity {
     }
 
     private void publishRepositories() throws JSONException {
-        js("window.onRepositories(" + repositories.links() + ")");
+        var links = repositories.links();
+        js("window.onRepositories(" + links + ")");
+        refreshRepositoryMaturity(links, false);
+    }
+
+    private void refreshRepositoryMaturity(JSONArray links, boolean refresh) {
+        if (library == null || repositoryMetadataWorker.isShutdown()) return;
+        repositoryMetadataWorker.execute(() -> {
+            for (int i = 0; i < links.length(); i++) {
+                var entry = links.optJSONObject(i);
+                if (entry == null || entry.optBoolean("bootloader")) continue;
+                String url = entry.optString("url");
+                try {
+                    boolean alpha = repositories.alphaTopic(ReleaseRepositories.parse(url), library, refresh);
+                    js("window.onRepositoryMaturity(" + JSONObject.quote(url) + "," + alpha + ")");
+                } catch (Exception error) {
+                    log.add("repositories", "Repository maturity refresh failed: " + error.getClass().getSimpleName());
+                }
+            }
+        });
     }
 
     private void readBootloader(UsbDevice device, android.net.Uri uri) {
@@ -1615,6 +1635,7 @@ public final class MainActivity extends Activity {
         closePort("activity closed");
         unregisterReceiver(receiver);
         worker.shutdown();
+        repositoryMetadataWorker.shutdownNow();
         super.onDestroy();
     }
 
@@ -1771,6 +1792,11 @@ public final class MainActivity extends Activity {
                 }
             });
         }
+        @JavascriptInterface public void refreshRepositoryMaturity() {
+            try { MainActivity.this.refreshRepositoryMaturity(repositories.links(), true); }
+            catch (JSONException error) { failure("repositories", error); }
+        }
+
         @JavascriptInterface public void repositoryAssets(int request, String url, boolean refresh) {
             worker.execute(() -> {
                 try {

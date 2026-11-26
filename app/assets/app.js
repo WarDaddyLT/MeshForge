@@ -24,6 +24,7 @@ let downloadScope = '';
 let downloadResult = '';
 let configWorking = false;
 let repositoryLinks = [];
+const repositoryLabels = new Map();
 let repositoryDownloads = [];
 const otaReleases = new Map();
 let localFirmware = null;
@@ -191,10 +192,12 @@ function buttons() {
   byId('remoteFirmware').hidden = local;
   byId('localFirmwareField').hidden = !local;
   byId('roleField').hidden = generic;
-  const channel = local ? '' : releaseChannel(release);
+  const alpha = sourceIsAlpha();
+  const channel = local ? '' : releaseChannel(release, alpha);
   const warning = byId('releaseWarning');
-  warning.hidden = !channel;
-  warning.textContent = channel ? channel + ' firmware. Use it for testing.' : '';
+  warning.hidden = !channel && !alpha;
+  warning.textContent = channel ? channel + ' firmware. Use it for testing.' :
+    alpha ? 'Alpha repository. Firmware is for testing.' : '';
   byId('stagedImage').textContent = ready ? 'Ready to flash · ' + ready.name :
     offline ? 'Available in Firmware Library for export.' :
     release && generic ? 'A repository file can be saved for offline use. Direct USB flashing requires a verified board and image match.' : '';
@@ -505,8 +508,13 @@ function matchesSelectedFirmware(release) {
     target.device === board.name + ' (' + board.type + ')' && target.role === role.title);
 }
 
-function releaseChannel(release) {
-  const tag = release?.tag || '';
+function sourceIsAlpha() {
+  return repositoryLinks.some(link => !link.bootloader && link.alpha && (link.source || link.url) === source());
+}
+
+function releaseChannel(release, repositoryAlpha = false) {
+  if (!release) return '';
+  const tag = release.tag || '';
   for (const [pattern, label] of [
     [/(?:^|[-._])alpha(?=$|[-._+0-9])/i, 'Alpha'],
     [/(?:^|[-._])beta(?=$|[-._+0-9])/i, 'Beta'],
@@ -514,12 +522,12 @@ function releaseChannel(release) {
   ]) {
     if (pattern.test(tag)) return label;
   }
-  return release?.prerelease === true ? 'Prerelease' : '';
+  return repositoryAlpha ? 'Alpha' : release.prerelease === true ? 'Prerelease' : '';
 }
 
 function earlyFirmwareOnly(files) {
   const firmware = files.filter(file => file.downloadable !== false && /\.(?:bin|uf2|zip|hex)$/i.test(file.name || ''));
-  return firmware.length > 0 && firmware.every(releaseChannel);
+  return firmware.length > 0 && firmware.every(file => releaseChannel(file));
 }
 
 function mergedBinary(release) {
@@ -543,6 +551,7 @@ function renderFirmwareChoices(releases, preferred = selectedRelease()) {
     versionList.push({...image, cached: image.sha256, types: [], version: image.tag});
   }
   const select = byId('version');
+  const alpha = sourceIsAlpha();
   select.replaceChildren();
   if (!versionList.length) addOption(select, '', 'No firmware selected');
   for (const [index, release] of versionList.entries()) {
@@ -553,7 +562,7 @@ function renderFirmwareChoices(releases, preferred = selectedRelease()) {
     const name = release.name || release.version;
     const version = release.name && release.version &&
       !release.name.toLowerCase().includes(release.version.toLowerCase()) ? release.version : '';
-    const label = [releaseChannel(release), name, version, formats.join(', '), release.cached ? 'Downloaded' : ''].filter(Boolean).join(' · ');
+    const label = [releaseChannel(release, alpha), name, version, formats.join(', '), release.cached ? 'Downloaded' : ''].filter(Boolean).join(' · ');
     addOption(select, String(index), label);
   }
   const previous = preferred && versionList.findIndex(release =>
@@ -562,7 +571,7 @@ function renderFirmwareChoices(releases, preferred = selectedRelease()) {
   else {
     const matching = release => !mergedBinary(release) && matchesSelectedFirmware(release);
     for (const eligible of [flashableRelease, matching, release => !mergedBinary(release)]) {
-      const stable = versionList.findIndex(release => eligible(release) && !releaseChannel(release));
+      const stable = versionList.findIndex(release => eligible(release) && !releaseChannel(release, alpha));
       const index = stable >= 0 ? stable : versionList.findIndex(eligible);
       if (index < 0) continue;
       select.value = String(index);
@@ -869,14 +878,16 @@ function drawLibrary() {
     const root = repositoryElement('details', '', 'library-repository');
     libraryDisclosure(root, 'repository:' + key, true, Boolean(search));
     const state = libraryRepositoryFiles.get(url);
-    const title = earlyFirmwareOnly(state?.files ?? []) ? repository + ' · Prerelease firmware only' : repository;
+    const alpha = repositoryLinks.some(link => link.url === url && link.alpha);
+    const title = alpha ? repository + ' · Alpha' : earlyFirmwareOnly(state?.files ?? []) ?
+      repository + ' · Prerelease firmware only' : repository;
     root.append(repositoryElement('summary', title, 'library-repository-title'));
     for (const [index, [version, entries]] of ordered.entries()) {
       const versionRow = repositoryElement('details', '', 'library-version');
       libraryDisclosure(versionRow, 'version:' + key + ':' + version, index === 0, Boolean(search));
       versionRow.append(repositoryElement('summary', version || 'Unknown version'));
       const rows = repositoryElement('ul', '', 'library-version-files');
-      for (const file of entries) rows.append(drawLibraryFile(file));
+      for (const file of entries) rows.append(drawLibraryFile(file, alpha));
       versionRow.append(rows);
       root.append(versionRow);
     }
@@ -898,12 +909,12 @@ function drawLibrary() {
       'No firmware listed yet. Refresh repositories or add a local firmware file.');
 }
 
-function drawLibraryFile(file) {
+function drawLibraryFile(file, alpha) {
   const row = repositoryElement('li', '', 'library-entry');
   row.append(repositoryElement('span', file.name || file.tag, 'library-filename'));
   const details = file.kind !== 'remote' ? 'Available offline' :
     file.downloadable === false ? 'Download unavailable' : file.digest ? '' : 'No published checksum';
-  row.append(repositoryElement('span', [releaseChannel(file), details].filter(Boolean).join(' · '), 'library-metadata'));
+  row.append(repositoryElement('span', [releaseChannel(file, alpha), details].filter(Boolean).join(' · '), 'library-metadata'));
   const actions = repositoryElement('div', '', 'actions');
   const exportFile = file.kind === 'remote' ? null : file.kind === 'repository' || file.kind === 'addedLocal' ?
     () => Phone.saveRepositoryAsset(file.name, file.sha256, file.size) :
@@ -992,24 +1003,48 @@ function repositoryName(url) {
 }
 
 window.onRepositoryStatus = message => { byId('repositoryStatus').textContent = message; };
+function repositoryTitle(link) {
+  const name = firmwareSourceNames[link.source] || repositoryName(link.url);
+  return link.alpha && !link.bootloader ? name + ' · Alpha' : name;
+}
+
+window.onRepositoryMaturity = (url, alpha) => {
+  const link = repositoryLinks.find(item => item.url === url);
+  const labels = repositoryLabels.get(url);
+  if (!link || !labels || Boolean(link.alpha) === alpha) return;
+  link.alpha = alpha;
+  const title = repositoryTitle(link);
+  labels.heading.textContent = title;
+  labels.remove.setAttribute('aria-label', 'Remove repository ' + title);
+  if (labels.option) labels.option.textContent = title;
+  if ((link.source || link.url) === source()) {
+    renderFirmwareChoices(versionList.filter(release => !release.cached));
+    buttons();
+  }
+  if (activePage === 'library') drawLibrary();
+};
+
 window.onRepositories = links => {
   const previous = source();
   const first = !repositoryLinks.length;
   repositoryLinks = links;
+  repositoryLabels.clear();
   const list = byId('repositoryList');
   list.replaceChildren();
   const selector = byId('repository');
   selector.replaceChildren();
   for (const link of links) {
-    const title = firmwareSourceNames[link.source] || repositoryName(link.url);
+    const title = repositoryTitle(link);
     const row = repositoryElement('li', '', 'repository-setting');
-    row.append(repositoryElement('strong', title));
+    const heading = repositoryElement('strong', title);
+    row.append(heading);
     row.append(repositoryElement('p', link.bootloader ? 'OTAFix' : 'Firmware', 'field-note'));
     const remove = repositoryAction('Remove', () => Phone.removeRepository(link.url));
     remove.setAttribute('aria-label', 'Remove repository ' + title);
     row.append(remove);
     list.append(row);
     if (!link.bootloader) addOption(selector, link.source || link.url, title);
+    repositoryLabels.set(link.url, {heading, remove, option: !link.bootloader ? selector.options[selector.options.length - 1] : null});
   }
   for (const url of otaReleases.keys()) {
     if (!links.some(link => link.bootloader && link.url === url)) otaReleases.delete(url);
@@ -1367,7 +1402,10 @@ byId('repository').onchange = () => {
 };
 byId('role').onchange = () => { dfuWorkflowStatus = ''; loadVersions(); };
 byId('version').onchange = () => { dfuWorkflowStatus = ''; buttons(); };
-byId('versions').onclick = () => loadVersions(true);
+byId('versions').onclick = () => {
+  Phone.refreshRepositoryMaturity?.();
+  loadVersions(true);
+};
 byId('fetch').onclick = () => {
   const release = selectedRelease();
   if (!release || byId('fetch').disabled) return;
@@ -1444,7 +1482,10 @@ byId('repeaterForm').onsubmit = event => {
   Phone.saveRepeater(repeaterView.device, JSON.stringify(changes));
 };
 byId('librarySearch').oninput = drawLibrary;
-byId('refreshLibrary').onclick = () => requestLibraryRepositories(true);
+byId('refreshLibrary').onclick = () => {
+  Phone.refreshRepositoryMaturity?.();
+  requestLibraryRepositories(true);
+};
 byId('addLibraryFirmware').onclick = () => Phone.pickLibraryFirmware();
 byId('pickLocal').onclick = () => Phone.pickLocal(byId('board').value);
 byId('saveLocal').onclick = () => {

@@ -94,6 +94,7 @@ function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption 
     flashFinished: environment.window.onComplete,
     showVersions: (request, versions) => environment.window.onVersions(request, versions, null),
     showRepositories: links => environment.window.onRepositories(links),
+    showRepositoryMaturity: environment.window.onRepositoryMaturity,
     showRepositoryAssets: (request, files) => environment.window.onRepositoryAssets(request, {files}, null),
     showInventory: files => environment.window.onRepositoryInventory(files),
     onReading: environment.window.onRepeaterReading, onSaving: environment.window.onRepeaterSaving,
@@ -408,6 +409,34 @@ test('Flash uses release metadata for early firmware warnings and prefers stable
   element('version').value = '1';
   element('version').onchange();
   assert.match(element('releaseWarning').textContent, /^Prerelease firmware/);
+});
+
+test('An Alpha repository marks empty and unqualified releases while explicit release tags still win', () => {
+  const {element, requests, showRepositories, showRepositoryMaturity, showRepositoryAssets} = load();
+  const url = 'https://github.com/example/firmware/releases';
+  const latestRequest = () => requests.filter(([, source]) => source === url).at(-1)[0];
+  showRepositories([{url}]);
+  showRepositoryAssets(latestRequest(), []);
+  showRepositoryMaturity(url, true);
+
+  assert.match(element('repository').options[0].textContent, /Alpha$/);
+  assert.match(element('repositoryList').options[0].options[0].textContent, /Alpha$/);
+  assert.match(element('releaseWarning').textContent, /Alpha repository/);
+  assert.match(element('versionStatus').textContent, /No published release files/);
+
+  element('versions').onclick();
+  showRepositoryAssets(latestRequest(), [
+    {tag: 'v0.1.0', name: 'radio.uf2', id: '1'},
+    {tag: 'v0.1.0-rc1', name: 'radio-rc.uf2', id: '2'}
+  ]);
+  assert.match(element('version').options[0].textContent, /^Alpha ·/);
+  assert.match(element('version').options[1].textContent, /^Release candidate ·/);
+  assert.match(element('releaseWarning').textContent, /^Alpha firmware/);
+
+  showRepositoryMaturity(url, false);
+  assert.equal(element('version').value, '0');
+  assert.equal(element('releaseWarning').hidden, true);
+  assert.equal(element('repository').options[0].textContent, 'example/firmware');
 });
 
 test('Library warns when a repository only offers early firmware and clears the warning for mixed releases', () => {
