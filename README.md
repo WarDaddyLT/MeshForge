@@ -73,7 +73,7 @@ Board and OTAFix metadata come from the official flasher's MIT-licensed communit
 
 ## Repositories and local files
 
-Manage public GitHub repository and release URLs on **Settings**. MeshCore, SaveMeshcore, MeshCore-Solo, and an OTAFix repository are included initially. Firmware sources appear on **Flash**. Use the **OTAFix** category for repositories that publish fixes. Library can download a repository file with no published checksum and labels it accordingly. Direct flashing requires a verified image for the selected board.
+Manage public GitHub repository and release URLs on **Settings**. MeshCore, SaveMeshcore, MeshCore-Solo, [Meshcore-Solo-Zygis](https://github.com/WarDaddyLT/Meshcore-Solo-Zygis), and an OTAFix repository are included initially. Firmware sources appear on **Flash**. Use the **OTAFix** category for repositories that publish fixes. Library can download a repository file with no published checksum and labels it accordingly. Direct flashing requires a verified image for the selected board.
 
 **Library** groups release files by repository and version. It marks saved files as available offline and shows imported firmware under **Local files**. It shows active downloads and lets you export files or remove individual repository downloads. The repository file cache is capped at 64 MiB. The curated firmware cache keeps the latest direct-write and exportable image.
 

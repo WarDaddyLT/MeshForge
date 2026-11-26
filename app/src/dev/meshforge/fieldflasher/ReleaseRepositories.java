@@ -79,22 +79,28 @@ final class ReleaseRepositories {
     }
 
     JSONArray links() throws JSONException {
-        var list = new JSONArray();
+        var links = new LinkedHashMap<String, JSONObject>();
         var removed = preferences.getStringSet("removed-defaults", Set.of());
         for (String url : new String[]{"https://github.com/meshcore-dev/MeshCore",
                 "https://github.com/aigarslv/SaveMeshcore", "https://github.com/MarekZegare4/MeshCore-Solo",
+                "https://github.com/WarDaddyLT/Meshcore-Solo-Zygis",
                 "https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX"}) {
             Link link = parse(url);
-            if (!removed.contains(link.url().toLowerCase(Locale.ROOT))) {
-                list.put(item(link, link.repo().equals("Adafruit_nRF52_Bootloader_OTAFIX"), true));
+            String key = link.url().toLowerCase(Locale.ROOT);
+            if (!removed.contains(key)) {
+                links.put(key, item(link, link.repo().equals("Adafruit_nRF52_Bootloader_OTAFIX"), true));
             }
         }
         var saved = saved();
         for (int i = 0; i < saved.length(); i++) {
             var entry = saved.getJSONObject(i);
-            list.put(item(parse(entry.getString("url")), entry.optBoolean("bootloader"), false));
+            Link link = parse(entry.getString("url"));
+            String key = link.url().toLowerCase(Locale.ROOT);
+            var existing = links.get(key);
+            boolean builtIn = existing != null && existing.optBoolean("builtIn");
+            links.put(key, item(link, entry.optBoolean("bootloader"), builtIn));
         }
-        return list;
+        return new JSONArray(links.values());
     }
 
     private Link configured(String raw) throws Exception {
