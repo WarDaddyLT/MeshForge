@@ -1296,7 +1296,8 @@ public final class MainActivity extends Activity {
         String board = data.optString("board");
         String source = data.optString("source");
         String role = data.optString("role");
-        if (!selection.board().equals(board) || !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) return false;
+        if (!selection.board().equals(board) || !(MeshCoreCatalogue.supportsDirectUpdate(board, source, role) ||
+                "official".equals(source) && data.optBoolean("derivedLayout"))) return false;
         if ("library".equals(selection.source())) return matchesSavedSelection(selection, data);
         if ("local".equals(selection.source()) || selection.source().startsWith("https://")) {
             return selection.sha().matches("[0-9a-f]{64}") && selection.sha().equals(data.optString("sha256"));
@@ -1410,14 +1411,10 @@ public final class MainActivity extends Activity {
                 var inspected = inspection;
                 var observed = inspected != null && device.equals(inspected.device()) ? inspected.identity() : null;
                 String reportedBoard = boardOf(device, observed);
-                if (!probeOnly && !reportedBoard.isEmpty() && !targetBoard.equals(reportedBoard)) {
-                    throw new IOException("Connected device is " + reportedBoard + ", but the selected firmware is for " +
-                            targetBoard + ". Select matching firmware before flashing.");
-                }
-
                 Runnable start = () -> {
                     if (!device.equals(findDevice(id)) || !usb.hasPermission(device)) {
-                        js("window.onComplete(false,'The attached device changed.')");
+                        if (probeOnly) js("window.onComplete(false,'The attached device changed.')");
+                        else flashFailed("The attached device changed.");
                         return;
                     }
                     flashRuntimeOriginal = device;
@@ -1428,11 +1425,25 @@ public final class MainActivity extends Activity {
                     log.add("flash.algorithm", "Native checks passed; invoking ESP32 serial flasher board=" +
                             targetBoard + " tag=" + tag);
                     log.add("plan", (probeOnly ? "User confirmed probe" : "Flash started") +
-                            " deviceId=" + id + " tag=" + tag + " address=0x10000 sha256=" + plan.optString("sha256"));
+                            " deviceId=" + id + " tag=" + tag + " address=0x" +
+                            Integer.toHexString(plan.optInt("appStart", FirmwareLibrary.APP_START)) +
+                            " sha256=" + plan.optString("sha256"));
                     js("window.startFlash(" + id + "," + plan + "," + probeOnly + ")");
                 };
                 if (!probeOnly) {
-                    view.post(start);
+                    String role = plan.optString("role");
+                    String currentRole = observed == null ? "" : observed.role();
+                    if ("room-server".equals(currentRole)) currentRole = "roomServer";
+                    String detected = !reportedBoard.isEmpty() && !reportedBoard.equals(targetBoard) ?
+                            "\nUSB reports " + reportedBoard + ". The selected board is " + targetBoard + "." : "";
+                    String roleNotice = currentRole.isEmpty() ? "\nThe current firmware role is unknown." :
+                            !currentRole.equals(role) ? "\nThis changes the role from " + currentRole + " to " + role + "." : "";
+                    String summary = targetBoard + "\n" + plan.optString("name") + "\n" + role +
+                            "\nSHA-256 " + plan.optString("sha256") + detected + roleNotice;
+                    view.post(() -> new AlertDialog.Builder(this).setTitle("Flash application firmware")
+                            .setMessage(summary).setNegativeButton("Cancel", (dialog, button) -> cancelFlash())
+                            .setOnCancelListener(dialog -> cancelFlash())
+                            .setPositiveButton("Flash", (dialog, button) -> start.run()).show());
                 } else {
                     view.post(() -> new AlertDialog.Builder(this)
                             .setTitle("Check flash layout")
@@ -1622,7 +1633,7 @@ public final class MainActivity extends Activity {
             String sha = FirmwareLibrary.digest("SHA-256", bytes);
             JSONObject details = new JSONObject().put("board", board).put("name", name)
                     .put("size", bytes.length).put("sha256", sha).put("route", "inspect");
-            if (board.equals(DIRECT_UPDATE_BOARD) && name.toLowerCase(Locale.ROOT).endsWith(".bin")) {
+            if (name.toLowerCase(Locale.ROOT).endsWith(".bin")) {
                 try {
                     var approvedImage = library.findCached(true, entry ->
                             sha.equals(entry.optString("sha256")) && board.equals(entry.optString("board")));

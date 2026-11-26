@@ -10,7 +10,7 @@ const image = {
   otaSeedMd5: 'seed', otaEmptyMd5: 'blank', md5: 'verified',
 };
 
-function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption = 0} = {}) {
+function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption = 0, chipId = 9, appStart = 0x10000} = {}) {
   const events = [];
   const traces = [];
   const requests = [];
@@ -33,15 +33,15 @@ function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption 
     return nodes.get(id);
   };
   class Loader {
-    chip = {IMAGE_CHIP_ID: 9};
+    chip = {IMAGE_CHIP_ID: chipId};
     FLASH_WRITE_SIZE = 16384;
     async connect() { events.push('connect'); }
     async command() {}
-    async readReg(address) { return address === 0x60007034 ? encryption << 18 : 0; }
+    async readReg(address) { return address === 0x60007034 ? encryption << 18 : address === 0x3ff5a000 ? encryption << 20 : 0; }
     async runStub() { events.push('stub'); }
     async readFlashId() { return 0x1640c8; }
     async flashMd5sum(address) {
-      return {0x8000: layout, 0xe000: ota, 0x10000: digest}[address];
+      return {0x8000: layout, 0xe000: ota, [appStart]: digest}[address];
     }
     async flashBegin(size, address) { events.push(['begin', size, address]); }
     async flashBlock(block, sequence) { events.push(['block', block.length, sequence]); }
@@ -135,6 +135,19 @@ test('verified write stays in the approved app region and resets', async () => {
   assert.ok(traces.some(entry => entry.stage === 'write.block' && /Sending sequence=0/.test(entry.message)));
   assert.ok(traces.some(entry => entry.stage === 'write.block' && /Acknowledged sequence=0/.test(entry.message)));
   assert.ok(traces.some(entry => entry.stage === 'flash.outcome' && /success=true/.test(entry.message)));
+});
+
+test('a paired ESP32 layout writes at the derived app offset and checks ESP32 encryption', async () => {
+  const appStart = 0x20000;
+  const profile = {...image, derivedLayout: true, chipId: 0, appStart,
+    appLength: 0x100000, minimumFlash: 0x120000, otaLength: 0};
+  const normal = load({chipId: 0, appStart});
+  await normal.run(false, profile);
+  assert.ok(normal.events.some(event => Array.isArray(event) && event[0] === 'begin' && event[2] === appStart));
+
+  const protectedRadio = load({chipId: 0, appStart, encryption: 1});
+  await protectedRadio.run(false, profile);
+  assert.equal(protectedRadio.events.some(event => Array.isArray(event) && event[0] === 'begin'), false);
 });
 
 test('digest mismatch reports failure without resetting the target', async () => {
