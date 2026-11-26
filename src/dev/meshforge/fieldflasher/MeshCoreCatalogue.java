@@ -137,7 +137,7 @@ final class MeshCoreCatalogue {
         String targetType = "";
         Pattern targetFile = null;
         if (!board.isEmpty()) {
-            boolean esp = board.equals(M5) || board.equals(T_DECK) || board.equals(XIAO);
+            boolean esp = "esp32".equals(entry(board).optString("type"));
             JSONArray roles = entry(board).getJSONArray("roles");
             JSONObject spec = null;
             for (int i = 0; i < roles.length(); i++) {
@@ -149,7 +149,9 @@ final class MeshCoreCatalogue {
             }
             if (spec != null) {
                 targetType = spec.getString("type");
-                String rule = spec.getJSONObject("files").optString(esp ? "flash-update" : "download");
+                var formats = spec.getJSONObject("files");
+                String rule = formats.optString(esp ? "flash-update" : "download");
+                direct = direct || esp && !M5.equals(board) && formats.has("flash-wipe") && !rule.isEmpty();
                 if (!rule.isEmpty()) {
                     // The published M5 repeater asset uses "Repeater" in releases with the lowercase catalogue rule.
                     int flags = M5.equals(board) && "repeater".equals(role) ? Pattern.CASE_INSENSITIVE : 0;
@@ -177,7 +179,9 @@ final class MeshCoreCatalogue {
                 if (!safeName(name) || !firmwareName(name) ||
                         !file.optString("url").equals("/releases/download/" + tag + "/" + name)) continue;
                 boolean target = type.equals(targetType) && targetFile != null && targetFile.matcher(name).matches();
-                result.put(option(tag, version, name, target && direct, !target));
+                JSONObject candidate = option(tag, version, name, target && direct, !target);
+                if (target && direct && !M5.equals(board)) candidate.put("derivedLayout", true);
+                result.put(candidate);
             }
         }
         return result;

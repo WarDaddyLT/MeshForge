@@ -23,7 +23,7 @@ MeshForge is a USB field flasher and Configurator for MeshCore radios. Use an An
 | LilyGo T‑Echo Lite | Stock bootloader, application UF2 over USB. | Owner reported a successful UF2 update on an earlier development build. |
 | Wio Tracker L1 Pro and L1 E‑Ink | Separate board profiles for application UF2 over USB. | The L1 E‑Ink enumerated as a UF2 drive on macOS. End-to-end Wio flashing and reboot are pending. |
 | LilyGo T‑Echo and RAK WisMesh 1W Booster | Application UF2 over USB for the listed profiles. For the RAK profile, confirm the RAK3401 module, RAK13302 radio, and S140 6.1.1 for the selected image. | End-to-end validation pending. |
-| LilyGo T‑Deck and XIAO ESP32‑S3 Wio | Browse and export matching files. Use the board’s programming procedure for installation. | Direct ESP profiles are planned. |
+| Other ESP32 and ESP32‑S3 boards | For supported official releases, derive an app-only write plan from the matching full image and require the live partition table to match. | End-to-end validation pending on additional hardware. |
 
 The M5 writer updates the existing application partition. **Merged BIN** is a full-install format you can save or export. **UF2 sent** means the image reached the matched bootloader. Check that the radio restarts into the expected firmware and its settings are available. Firmware variants are separate targets, including the Wio e‑paper and 1 W variants and the T‑Echo Lite KeyShield build. [Board validation and support matrix](https://github.com/WarDaddyLT/MeshForge/issues/31)
 

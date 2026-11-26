@@ -1305,17 +1305,24 @@ function logCommands(loader) {
 async function preflight(loader, image) {
   note('flash.algorithm', 'Preflight start board=' + image.board + ' imageBytes=' + image.size +
     ' partitionLength=' + image.partitionLength);
-  note('boot', 'Resetting target and starting ESP32-S3 ROM synchronization');
+  note('boot', 'Resetting target and starting ESP ROM synchronization');
   await loader.connect('default_reset', 3);
   note('boot', 'ROM synchronization complete chipImageId=' + loader.chip?.IMAGE_CHIP_ID);
-  if (loader.chip?.IMAGE_CHIP_ID !== 9) throw new Error('Expected an ESP32-S3.');
-  // ESP32-S3 eFuse read addresses and fields from Espressif esptool.
+  const expectedChip = image.chipId ?? 9;
+  if (![0, 9].includes(expectedChip) || loader.chip?.IMAGE_CHIP_ID !== expectedChip) {
+    throw new Error('The connected ESP chip does not match the selected application.');
+  }
+  // Register locations and masks match the ESP32 and ESP32-S3 esptool targets.
   note('preflight', 'Reading secure-boot and encryption eFuses');
-  const cryptCount = (await loader.readReg(0x60007034) >>> 18) & 7;
-  const secureBoot = !!((await loader.readReg(0x60007038)) & (1 << 20));
-  const encrypted = ((cryptCount ^ (cryptCount >>> 1) ^ (cryptCount >>> 2)) & 1) !== 0;
-  note('security', 'ESP32-S3 cryptCount=' + cryptCount + ' secureBoot=' + secureBoot + ' flashEncrypted=' + encrypted);
-  if (secureBoot || encrypted) throw new Error('This target has protected flash.');
+  const classic = expectedChip === 0;
+  let cryptCount = classic ? (await loader.readReg(0x3ff5a000) >>> 20) & 0x7f :
+    (await loader.readReg(0x60007034) >>> 18) & 7;
+  const secureBoot = classic ? Boolean((await loader.readReg(0x3ff5a018)) & 0x30) :
+    Boolean((await loader.readReg(0x60007038)) & (1 << 20));
+  let parity = 0;
+  for (; cryptCount; cryptCount >>>= 1) parity ^= cryptCount & 1;
+  note('security', 'chipId=' + expectedChip + ' secureBoot=' + secureBoot + ' flashEncrypted=' + Boolean(parity));
+  if (secureBoot || parity) throw new Error('This target has protected flash.');
   if (loader.chip.postConnect) {
     note('preflight', 'Running chip-specific post-connect initialization');
     await loader.chip.postConnect(loader);
@@ -1325,28 +1332,36 @@ async function preflight(loader, image) {
   note('preflight', 'RAM stub ready; reading flash JEDEC ID');
   const jedec = await loader.readFlashId();
   note('preflight', 'JEDEC=0x' + jedec.toString(16));
-  if (((jedec >>> 16) & 255) !== 0x16) throw new Error('Expected 4 MiB of target flash.');
-  note('preflight', 'Reading partition table at 0x8000 length=' + image.partitionLength);
-  const partitions = await loader.flashMd5sum(0x8000, image.partitionLength);
+  const flashExponent = (jedec >>> 16) & 255;
+  const flashBytes = flashExponent >= 20 && flashExponent <= 27 ? 2 ** flashExponent : 0;
+  if (image.derivedLayout ? flashBytes < image.minimumFlash : flashExponent !== 0x16) {
+    throw new Error('The detected flash is too small or its capacity could not be verified.');
+  }
+  const partitionOffset = image.partitionOffset ?? 0x8000;
+  note('preflight', 'Checking live partition table at 0x' + partitionOffset.toString(16));
+  const partitions = await loader.flashMd5sum(partitionOffset, image.partitionLength);
   note('layout', 'partitionTableMD5=' + partitions + ' expected=' + image.partitionMd5);
   if (partitions !== image.partitionMd5) throw new Error('The flash partition layout does not match the selected board.');
-  note('preflight', 'Reading OTA metadata at 0xe000 length=8192');
-  const ota = await loader.flashMd5sum(0xe000, 0x2000);
-  note('layout', 'otaMetadataMD5=' + ota);
-  if (ota !== image.otaSeedMd5 && ota !== image.otaEmptyMd5) {
-    throw new Error('Could not confirm that the target boots from the approved application slot.');
+  const otaLength = image.otaLength ?? 0x2000;
+  if (otaLength) {
+    const ota = await loader.flashMd5sum(image.otaStart ?? 0xe000, otaLength);
+    note('layout', 'otaMetadataMD5=' + ota);
+    if (ota !== image.otaSeedMd5 && ota !== image.otaEmptyMd5) {
+      throw new Error('Could not confirm that the target boots from the approved application slot.');
+    }
   }
   note('flash.algorithm', 'Preflight passed; application-only write is eligible');
 }
 
 async function writeImage(loader, image, data) {
-  const address = 0x10000;
+  const address = image.appStart ?? 0x10000;
+  const slotLength = image.appLength ?? 0x140000;
   const blockSize = loader.FLASH_WRITE_SIZE;
-  if (!blockSize || Math.ceil(data.length / blockSize) * blockSize > 0x140000) {
+  if (!blockSize || Math.ceil(data.length / blockSize) * blockSize > slotLength) {
     throw new Error('Padded write would exceed the application slot.');
   }
   const blockCount = Math.ceil(data.length / blockSize);
-  note('write', 'Begin app-only write address=0x10000 size=' + data.length + ' block=' + blockSize +
+  note('write', 'Begin app-only write address=0x' + address.toString(16) + ' size=' + data.length + ' block=' + blockSize +
     ' blockCount=' + blockCount + ' paddedBytes=' + (blockCount * blockSize));
   progressStage('stageWrite', 'Writing firmware…');
   note('write', 'Sending FLASH_BEGIN size=' + data.length + ' address=0x' + address.toString(16));

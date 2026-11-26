@@ -66,16 +66,17 @@ final class FirmwareLibrary {
 
     private static void validateEspHeader(byte[] data) throws IOException {
         if (data.length < 288 || (data[0] & 255) != 0xe9 || data[1] < 1 || data[1] > 16 ||
-                (data[12] & 255) != 9 || data[13] != 0 ||
+                ((data[12] & 255) != 9 && data[12] != 0) || data[13] != 0 ||
                 (data[32] & 255) != 0x32 || (data[33] & 255) != 0x54 ||
                 (data[34] & 255) != 0xcd || (data[35] & 255) != 0xab) {
-            throw new IOException("Expected an ESP32-S3 application image");
+            throw new IOException("Expected an ESP32 or ESP32-S3 application image");
         }
     }
 
     private void validate(byte[] data, JSONObject details) throws Exception {
         validateEspHeader(data);
-        if (data.length > APP_LENGTH || data.length != details.getInt("size") || !digest("SHA-256", data).equals(details.getString("sha256")) ||
+        if ((data[12] & 255) != details.optInt("chipId", 9) ||
+                data.length > details.optInt("appLength", APP_LENGTH) || data.length != details.getInt("size") || !digest("SHA-256", data).equals(details.getString("sha256")) ||
                 !digest("MD5", data).equals(details.getString("md5"))) {
             throw new IOException("Firmware digest check failed");
         }
@@ -118,14 +119,16 @@ final class FirmwareLibrary {
     private Image readCached(JSONObject details, boolean direct) throws Exception {
         byte[] bytes;
         try (var image = new FileInputStream(cache.blob(details))) {
-            bytes = limited(image, direct ? APP_LENGTH : EXPORT_LIMIT);
+            bytes = limited(image, EXPORT_LIMIT);
         }
         if (direct) {
             validate(bytes, details);
-            var plan = layoutDetails();
-            for (var fields = plan.keys(); fields.hasNext();) {
-                String field = fields.next();
-                details.put(field, plan.get(field));
+            if (!details.optBoolean("derivedLayout")) {
+                var plan = layoutDetails();
+                for (var fields = plan.keys(); fields.hasNext();) {
+                    String field = fields.next();
+                    details.put(field, plan.get(field));
+                }
             }
         } else {
             validateExport(bytes, details);
@@ -177,7 +180,8 @@ final class FirmwareLibrary {
         String repository = MeshCoreCatalogue.repository(source);
         boolean uf2 = name.endsWith(".uf2");
         boolean direct = !option.getString("appTag").isEmpty();
-        if (direct && !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) {
+        boolean derived = direct && source.equals("official") && option.optBoolean("derivedLayout");
+        if (direct && !derived && !MeshCoreCatalogue.supportsDirectUpdate(board, source, role)) {
             throw new IOException("Direct flashing is unavailable for this board and firmware role.");
         }
         boolean exportOnly = option.optBoolean("exportOnly");
@@ -190,7 +194,7 @@ final class FirmwareLibrary {
         JSONObject asset = uniqueAsset(release, Pattern.compile(Pattern.quote(name)));
         if (asset == null) throw new IOException("Selected image is unavailable in the published release");
         byte[] image = direct ? reusableApp(asset) : null;
-        if (image == null) image = fetchAsset(repository, tag, asset, direct ? APP_LENGTH : EXPORT_LIMIT);
+        if (image == null) image = fetchAsset(repository, tag, asset, direct && !derived ? APP_LENGTH : EXPORT_LIMIT);
         String sha = asset.getString("digest").substring(7);
         int size = image.length;
         var details = new JSONObject().put("tag", tag).put("name", name).put("size", size)
@@ -206,17 +210,31 @@ final class FirmwareLibrary {
                     " asset=" + asset.getLong("id") + " sha256=" + sha);
             return details;
         }
-        if (source.equals("save") || !role.equals("companionBle")) {
+        if (derived || source.equals("save") || !role.equals("companionBle")) {
             String mergedName = name.substring(0, name.length() - 4) + "-merged.bin";
             JSONObject mergedAsset = uniqueAsset(release, Pattern.compile(Pattern.quote(mergedName)));
             if (mergedAsset == null) throw new IOException("Matching published partition layout is unavailable");
             byte[] merged = fetchAsset(repository, tag, mergedAsset, 4 * 1024 * 1024);
-            int partitionEnd = 0x8000 + layout.getInt("partitionLength");
-            if (merged.length < APP_START + size ||
-                    !digest("MD5", Arrays.copyOfRange(merged, 0x8000, partitionEnd))
-                            .equals(layout.getString("partitionMd5")) ||
-                    !Arrays.equals(image, 0, size, merged, APP_START, APP_START + size)) {
-                throw new IOException("The published app image does not match the approved partition layout for the selected board.");
+            if (derived) {
+                var verified = EspApplicationPlan.derive(image, merged);
+                byte[] erased = new byte[verified.otaLength()];
+                Arrays.fill(erased, (byte) 0xff);
+                details.put("derivedLayout", true).put("chipId", verified.chipId())
+                        .put("appStart", verified.appStart()).put("appLength", verified.appLength())
+                        .put("minimumFlash", verified.minimumFlash())
+                        .put("partitionOffset", EspApplicationPlan.TABLE_OFFSET)
+                        .put("partitionLength", EspApplicationPlan.TABLE_LENGTH)
+                        .put("partitionMd5", digest("MD5", verified.table()))
+                        .put("otaStart", verified.otaStart()).put("otaLength", verified.otaLength())
+                        .put("otaEmptyMd5", digest("MD5", erased));
+            } else {
+                int partitionEnd = 0x8000 + layout.getInt("partitionLength");
+                if (merged.length < APP_START + size ||
+                        !digest("MD5", Arrays.copyOfRange(merged, 0x8000, partitionEnd))
+                                .equals(layout.getString("partitionMd5")) ||
+                        !Arrays.equals(image, 0, size, merged, APP_START, APP_START + size)) {
+                    throw new IOException("The published app image does not match the approved partition layout for the selected board.");
+                }
             }
             log.add("image", "Matched app bytes and partition table against the published merged image role=" + role);
         }
