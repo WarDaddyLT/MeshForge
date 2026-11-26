@@ -1207,20 +1207,18 @@ public final class MainActivity extends Activity {
             var saved = cacheRepositorySelection(selection);
             image = new FirmwareLibrary.Image(saved.bytes(), new JSONObject()
                     .put("board", selection.board()).put("name", selection.name()).put("sha256", selection.sha()));
-        } else if (cachedExportMatches(selection)) {
-            log.add("dfu.resolve", "Using verified cached UF2");
-            image = library.loadExport();
         } else {
-            JSONObject option = findReleaseFile(selection.board(), selection.role(), selection.source(),
-                    selection.tag(), selection.name());
-            if (option.optBoolean("exportOnly")) {
-                throw new IOException("The selected file is not a board-compatible UF2 image.");
+            image = library.findCached(false, details -> matchesRelease(selection, details));
+            if (image == null) {
+                JSONObject option = findReleaseFile(selection.board(), selection.role(), selection.source(),
+                        selection.tag(), selection.name());
+                if (option.optBoolean("exportOnly")) throw new IOException("Choose a board-compatible UF2 image.");
+                js("window.onDfuTransfer('Downloading and verifying the board-compatible UF2…')");
+                JSONObject details = library.fetch(selection.source(), selection.board(), selection.role(), option);
+                publishFirmware(details, true);
+                image = library.findCached(false, item -> matchesRelease(selection, item));
             }
-            log.add("dfu.resolve", "Fetching selected UF2 asset");
-            js("window.onDfuTransfer('Downloading and verifying the board-compatible UF2…')");
-            JSONObject details = library.fetch(selection.source(), selection.board(), selection.role(), option);
-            publishFirmware(details, true);
-            image = library.loadExport();
+            if (image == null) throw new IOException("The selected UF2 is unavailable in the firmware library.");
         }
         if (Set.of("official", "save", "solo").contains(selection.source()) && !matchesRelease(selection, image.details())) {
             throw new IOException("The staged UF2 does not match the selected release.");
@@ -1234,16 +1232,9 @@ public final class MainActivity extends Activity {
     private FirmwareLibrary.Image resolveFlashImage(FirmwareSelection selection) throws Exception {
         log.add("flash.resolve", "Resolving board=" + selection.board() + " source=" + selection.source() +
                 " role=" + selection.role() + " tag=" + selection.tag() + " name=" + selection.name());
-        FirmwareLibrary.Image cached = null;
-        try {
-            cached = library.load();
-            log.add("flash.resolve", "Cached direct image bytes=" + cached.bytes().length +
-                    " sha256=" + cached.details().optString("sha256"));
-        } catch (Exception error) {
-            log.add("flash.prepare", "No usable direct-write image in cache type=" + error.getClass().getSimpleName());
-        }
-        if (cached != null && matchesFlashSelection(selection, cached)) {
-            log.add("flash.resolve", "Cached image matches exact selected board/source/role/release");
+        var cached = library.findCached(true, details -> matchesFlashSelection(selection, details));
+        if (cached != null) {
+            log.add("flash.resolve", "Using exact saved application SHA-256 " + cached.details().optString("sha256"));
             return cached;
         }
         if ("local".equals(selection.source())) {
@@ -1268,14 +1259,13 @@ public final class MainActivity extends Activity {
             throw new IOException("Firmware saved to Library. Use the selected board’s separate update procedure.");
         }
         // Resolve, validate and capture the exact selected image before USB access is requested.
-        var image = library.load();
-        if (!matchesFlashSelection(selection, image)) throw new IOException("The exact selected image could not be verified.");
+        var image = library.findCached(true, item -> matchesFlashSelection(selection, item));
+        if (image == null) throw new IOException("The exact selected image could not be verified.");
         log.add("flash.resolve", "Downloaded image matches exact selected release");
         return image;
     }
 
-    private static boolean matchesFlashSelection(FirmwareSelection selection, FirmwareLibrary.Image image) {
-        JSONObject data = image.details();
+    private static boolean matchesFlashSelection(FirmwareSelection selection, JSONObject data) {
         String board = data.optString("board");
         String source = data.optString("source");
         String role = data.optString("role");
@@ -1295,7 +1285,7 @@ public final class MainActivity extends Activity {
 
     private boolean cachedExportMatches(FirmwareSelection selection) {
         try {
-            return matchesRelease(selection, library.loadExport().details());
+            return library.findCached(false, details -> matchesRelease(selection, details)) != null;
         } catch (Exception ignored) {
             return false;
         }
@@ -1335,9 +1325,15 @@ public final class MainActivity extends Activity {
         throw new IOException("The selected release file is unavailable for this board and role.");
     }
 
+    private void publishCuratedInventory() {
+        try { js("window.onCuratedInventory(" + library.inventory() + ")"); }
+        catch (Exception error) { failure("firmware.cache", error); }
+    }
+
     private void publishFirmware(JSONObject details, boolean restored) throws JSONException {
         js((details.getBoolean("direct") ? "window.onDownload(" : "window.onCachedExport(") +
                 details + ",null," + restored + ")");
+        publishCuratedInventory();
     }
 
     private void beginFlashReview(FlashReview review) {
@@ -1599,8 +1595,9 @@ public final class MainActivity extends Activity {
                     .put("size", bytes.length).put("sha256", sha).put("route", "inspect");
             if (board.equals(DIRECT_UPDATE_BOARD) && name.toLowerCase(Locale.ROOT).endsWith(".bin")) {
                 try {
-                    var approvedImage = library.load();
-                    if (sha.equals(approvedImage.details().getString("sha256"))) {
+                    var approvedImage = library.findCached(true, entry ->
+                            sha.equals(entry.optString("sha256")) && board.equals(entry.optString("board")));
+                    if (approvedImage != null) {
                         details.put("route", "remote")
                                 .put("tag", approvedImage.details().optString("tag"))
                                 .put("source", approvedImage.details().optString("source").equals("save") ? "save" : "official")
@@ -1746,6 +1743,7 @@ public final class MainActivity extends Activity {
                 } catch (FileNotFoundException ordinaryFirstRun) {
                     log.add("cache", "No exportable file cached");
                 } catch (Exception error) { failure("cache.export", error); }
+                publishCuratedInventory();
                 publishRepositoryDownloads();
                 var local = getSharedPreferences("local-firmware", MODE_PRIVATE);
                 String uri = local.getString("uri", "");
@@ -1801,12 +1799,24 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void exportCachedFirmware(String sha, boolean direct) {
             worker.execute(() -> {
                 try {
-                    var image = direct ? library.load() : library.loadExport();
-                    if (!sha.equals(image.details().getString("sha256"))) {
+                    var image = library.findCached(direct, entry -> sha.equals(entry.optString("sha256")));
+                    if (image == null) {
                         throw new IOException("This firmware file is no longer in the library.");
                     }
                     showSaveFirmware(image);
                 } catch (Exception error) {
+                    js("window.onAssetStatus(" + JSONObject.quote(error.getMessage()) + ")");
+                }
+            });
+        }
+        @JavascriptInterface public void removeCuratedFirmware(String key) {
+            worker.execute(() -> {
+                try {
+                    library.removeCached(key);
+                    publishCuratedInventory();
+                    js("window.onAssetStatus('Offline firmware removed.')");
+                } catch (Exception error) {
+                    failure("firmware.cache", error);
                     js("window.onAssetStatus(" + JSONObject.quote(error.getMessage()) + ")");
                 }
             });

@@ -15,6 +15,7 @@ let busy = false;
 let downloading = false;
 let cachedM5 = null;
 let cachedExport = null;
+let curatedInventory = null;
 let bootloaderKey = '';
 let otaPackageKey = '';
 let otaPackages = [];
@@ -78,17 +79,21 @@ function matchesRelease(image, release) {
     image.tag === release.tag && image.name === release.name));
 }
 
+function curatedImages() {
+  return curatedInventory ?? [cachedM5 && {...cachedM5, direct: true}, cachedExport].filter(Boolean);
+}
+
 function flashImage() {
-  if (!cachedM5?.sha256) return null;
-  if (source() === 'local') {
-    return localFirmware?.route === 'remote' && localFirmware.board === byId('board').value &&
-      localFirmware.sha256 && localFirmware.sha256 === cachedM5?.sha256 ? cachedM5 : null;
-  }
-  if (source().startsWith('https://')) {
-    return cachedM5?.sha256 && cachedM5.board === byId('board').value &&
-      selectedRelease()?.digest === 'sha256:' + cachedM5.sha256 ? cachedM5 : null;
-  }
-  return matchesSelection(cachedM5) && matchesRelease(cachedM5, selectedRelease()) ? cachedM5 : null;
+  const selected = selectedRelease();
+  return curatedImages().find(image => {
+    if (!image.direct || image.board !== byId('board').value) return false;
+    if (source() === 'local') {
+      return localFirmware?.route === 'remote' && localFirmware.board === image.board &&
+        localFirmware.sha256 === image.sha256;
+    }
+    if (source().startsWith('https://')) return selected?.digest === 'sha256:' + image.sha256;
+    return matchesSelection(image) && matchesRelease(image, selected);
+  }) ?? null;
 }
 
 function setMotion(id, active) {
@@ -125,7 +130,7 @@ function prepareFlashSelection(device, release) {
     device: device?.id ?? -1, board: byId('board').value, source: source(), role: byId('role').value,
     tag: local?.tag || release?.tag || '',
     name: local?.name || release?.name || '',
-    sha: local?.sha256 || release?.digest?.replace(/^sha256:/, '') || '',
+    sha: local?.sha256 || release?.digest?.replace(/^sha256:/, '') || release?.cached || '',
     assetId: release?.id || ''
   };
 }
@@ -187,7 +192,7 @@ function buttons() {
   const ready = flashImage();
   const local = source() === 'local';
   const generic = source().startsWith('https://');
-  const cached = [cachedM5, cachedExport].find(image => matchesSelection(image) && matchesRelease(image, release));
+  const cached = curatedImages().find(image => matchesSelection(image) && matchesRelease(image, release));
   const found = release?.digest && repositoryDownloads.find(file => 'sha256:' + file.sha256 === release.digest);
   const offline = cached || found || ready;
   const needsWriteVerification = !generic && !ready &&
@@ -546,7 +551,8 @@ function flashableRelease(release) {
   if (mergedBinary(release)) return false;
   if (isDfuSelection(release)) return true;
   if (source().startsWith('https://')) {
-    return cachedM5?.board === byId('board').value && release.digest === 'sha256:' + cachedM5.sha256;
+    return curatedImages().some(image => image.direct && image.board === byId('board').value &&
+      release.digest === 'sha256:' + image.sha256);
   }
   return release.exportOnly !== true &&
     (release.direct === true || Boolean(release.appTag) || release.types?.includes('flash-update'));
@@ -554,7 +560,7 @@ function flashableRelease(release) {
 
 function renderFirmwareChoices(releases, preferred = selectedRelease()) {
   versionList = [...releases];
-  for (const image of [cachedM5, cachedExport]) {
+  for (const image of curatedImages()) {
     if (!matchesSelection(image) || versionList.some(release => matchesRelease(image, release))) continue;
     versionList.push({...image, cached: image.sha256, types: [], version: image.tag});
   }
@@ -728,6 +734,13 @@ window.onCachedExport = (image, error, restored = false) => {
   else { buttons(); drawLibrary(); }
   refreshLog();
 };
+window.onCuratedInventory = images => {
+  curatedInventory = images;
+  renderFirmwareChoices(versionList.filter(release => !release.cached));
+  buttons();
+  drawLibrary();
+};
+
 window.onAssetStatus = message => {
   if (activePage === 'library') byId('libraryStatus').textContent = message;
   else byId('otaJob').textContent = message;
@@ -875,8 +888,7 @@ function drawLibrary() {
     }
   }
   const files = [
-    ...(cachedM5 ? [{...cachedM5, kind: 'direct'}] : []),
-    ...(cachedExport ? [{...cachedExport, kind: 'cached'}] : []),
+    ...curatedImages().map(image => ({...image, kind: image.direct ? 'direct' : 'cached'})),
     ...remoteFiles,
     ...repositoryDownloads.filter(file => file.local || !listedDigests.has(file.sha256))
       .map(file => ({...file, kind: file.local ? 'addedLocal' : 'repository'})),
@@ -980,12 +992,16 @@ function drawLibraryFile(file, alpha) {
     download.setAttribute('aria-label', 'Download ' + file.name);
     actions.append(download);
   }
-  if (file.kind === 'repository' || file.kind === 'addedLocal') {
+  if (file.kind === 'repository' || file.kind === 'addedLocal' || file.cacheKey) {
     const remove = repositoryAction('Remove', () => {
       if (!window.confirm('Remove this offline copy?')) return;
-      const id = ++repositoryRequest;
-      repositoryRequests.set(id, {kind: 'remove'});
-      Phone.removeRepositoryAsset(id, file.sha256);
+      if (file.cacheKey) {
+        Phone.removeCuratedFirmware(file.cacheKey);
+      } else {
+        const id = ++repositoryRequest;
+        repositoryRequests.set(id, {kind: 'remove'});
+        Phone.removeRepositoryAsset(id, file.sha256);
+      }
     });
     remove.setAttribute('aria-label', 'Remove download ' + file.name);
     actions.append(remove);
