@@ -15,7 +15,7 @@ MeshForge is an offline-capable Android USB field flasher and Configurator for M
 ## Repository and delivery
 
 - Keep the build and manifest at the repository root, with sources in `src/`, resources in `res/`, WebView assets in `assets/`, and tests in `tests/`. Build outputs and local signing material belong in ignored `out/`. Keep board metadata and compatibility checks in the app.
-- Run `node --test tests/*.test.mjs` and `./build.sh` from the root. Build the Android instrumentation APK using `./tests/build-usb-e2e.sh` for hardware work. Keep tool and library versions pinned, preserve third-party licenses, and update usage and recovery documentation when behavior changes.
+- Run `node --test tests/*.test.mjs`, `./tests/run-jvm-tests.sh`, and `./build.sh` from the root. Build the Android instrumentation APK using `./tests/build-usb-e2e.sh` for hardware work. Keep tool and library versions pinned, preserve third-party licenses, and update usage and recovery documentation when behavior changes.
 - Use one focused issue, commit, branch, and PR per deliverable when publishing changes. Target the maintainer’s own repository and keep upstream projects as references and firmware sources. Push or publish only with authorization. For a release, increment the Android version code, use the established release signing key, and smoke-test the exact published candidate on hardware.
 - Ask before erasing, reflashing, changing configuration, or performing other irreversible hardware actions unless the owner already explicitly authorized that target and action. Phone installation permission is separate from radio write permission. Keep backups, exported logs, generated APKs, private radio data, and signing material out of Git.
 
