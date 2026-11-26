@@ -99,6 +99,7 @@ function load({layout = 'layout', ota = 'seed', digest = 'verified', encryption 
     showRepositoryMaturity: environment.window.onRepositoryMaturity,
     showRepositoryAssets: (request, files) => environment.window.onRepositoryAssets(request, {files}, null),
     showInventory: files => environment.window.onRepositoryInventory(files),
+    showCuratedInventory: environment.window.onCuratedInventory,
     onReading: environment.window.onRepeaterReading, onSaving: environment.window.onRepeaterSaving,
     showRepositoryDownload: request => environment.window.onRepositoryDownload(request, {}, null),
     showLocal: image => environment.window.onLocalFirmware(image, null),
@@ -970,6 +971,25 @@ test('Flash owns release selection and Library shows the download and the saved 
   assert.match(group.options[0].textContent, /MeshCore/);
   assert.match(group.options[1].options[0].textContent, /^v1\.18\.0$/);
   assert.equal(group.options[1].options[1].options[0].options[0].textContent, name);
+});
+
+test('Curated inventory keeps older offline releases selectable by their saved digest', () => {
+  const {element, requests, events, showBoards, showUsb, showVersions, showCuratedInventory} = load();
+  const board = 'Elecrow ThinkNode M5';
+  showBoards([{name: board, roles: [{id: 'companionBle', title: 'Companion Bluetooth'}]}]);
+  showUsb([{id: 7, name: board, board, flashSerial: true}]);
+  const [request] = requests.at(-1);
+  showVersions(request, []);
+  const details = {board, source: 'official', role: 'companionBle', direct: true, exportOnly: false};
+  showCuratedInventory([
+    {...details, name: 'new.bin', tag: 'v2', sha256: 'new-sha'},
+    {...details, name: 'old.bin', tag: 'v1', sha256: 'old-sha'}
+  ]);
+  assert.equal(element('version').options.length, 2);
+  element('version').value = '1';
+  element('flash').onclick();
+  assert.equal(events.at(-1)[1].name, 'old.bin');
+  assert.equal(events.at(-1)[1].sha, 'old-sha');
 });
 
 test('Library groups files by repository and version and uses compact file rows', () => {

@@ -23,6 +23,7 @@ final class FirmwareLibrary {
     private final DiagnosticLog log;
     private final File directory;
     private final JSONObject layout;
+    private final CuratedFirmwareCache cache;
 
     record Image(byte[] bytes, JSONObject details) {}
 
@@ -30,6 +31,7 @@ final class FirmwareLibrary {
         this.log = log;
         directory = new File(context.getFilesDir(), "firmware");
         if (!directory.isDirectory() && !directory.mkdir()) throw new IOException("Cannot open firmware cache");
+        cache = new CuratedFirmwareCache(directory, log);
         try (var input = context.getAssets().open("m5-layout.json")) {
             layout = new JSONObject(new String(limited(input, 8192), StandardCharsets.UTF_8));
         }
@@ -85,22 +87,48 @@ final class FirmwareLibrary {
         return new JSONObject(layout.toString());
     }
 
+    synchronized JSONArray inventory() throws Exception {
+        return cache.inventory();
+    }
+
+    synchronized void removeCached(String key) throws Exception {
+        cache.remove(key);
+    }
+
+    synchronized Image findCached(boolean direct, java.util.function.Predicate<JSONObject> matches) throws Exception {
+        var entries = cache.inventory();
+        for (int i = 0; i < entries.length(); i++) {
+            var details = entries.getJSONObject(i);
+            if (details.optBoolean("direct") != direct || !matches.test(details)) continue;
+            try {
+                return readCached(details, direct);
+            } catch (IOException error) {
+                log.add("firmware.cache", "Skipping invalid saved firmware: " + error.getMessage());
+            }
+        }
+        return null;
+    }
+
     synchronized Image load() throws Exception {
-        JSONObject details;
-        try (var meta = new FileInputStream(new File(directory, "release.json"))) {
-            details = new JSONObject(new String(limited(meta, 8192), StandardCharsets.UTF_8));
-        }
-        String sha = details.getString("sha256");
-        if (!sha.matches("[0-9a-f]{64}")) throw new IOException("Invalid cached digest");
+        var image = findCached(true, entry -> true);
+        if (image == null) throw new FileNotFoundException("No direct firmware saved");
+        return image;
+    }
+
+    private Image readCached(JSONObject details, boolean direct) throws Exception {
         byte[] bytes;
-        try (var image = new FileInputStream(new File(directory, sha + ".bin"))) {
-            bytes = limited(image, APP_LENGTH);
+        try (var image = new FileInputStream(cache.blob(details))) {
+            bytes = limited(image, direct ? APP_LENGTH : EXPORT_LIMIT);
         }
-        validate(bytes, details);
-        var plan = layoutDetails();
-        for (var fields = plan.keys(); fields.hasNext();) {
-            String field = fields.next();
-            details.put(field, plan.get(field));
+        if (direct) {
+            validate(bytes, details);
+            var plan = layoutDetails();
+            for (var fields = plan.keys(); fields.hasNext();) {
+                String field = fields.next();
+                details.put(field, plan.get(field));
+            }
+        } else {
+            validateExport(bytes, details);
         }
         return new Image(bytes, details);
     }
@@ -173,15 +201,7 @@ final class FirmwareLibrary {
                 if (uf2) validateUf2(image, MeshCoreCatalogue.uf2Start(board));
                 else validateEspHeader(image);
             }
-            File file = new File(directory, "export-" + sha + ".img");
-            atomic(file, image);
-            atomic(new File(directory, "export.json"), details.toString().getBytes(StandardCharsets.UTF_8));
-            var previous = directory.listFiles();
-            if (previous != null) for (File old : previous) {
-                if (old.getName().matches("export-[0-9a-f]{64}\\.img") && !old.equals(file)) {
-                    Files.deleteIfExists(old.toPath());
-                }
-            }
+            cache.store(details, image);
             log.add("download", "Verified download digest board=" + board + " source=" + repository +
                     " asset=" + asset.getLong("id") + " sha256=" + sha);
             return details;
@@ -201,38 +221,19 @@ final class FirmwareLibrary {
             log.add("image", "Matched app bytes and partition table against the published merged image role=" + role);
         }
         details.put("md5", digest("MD5", image));
-        File cacheMetadata = new File(directory, "release.json");
-        if (cacheMetadata.isFile()) {
-            try (var metadata = new FileInputStream(cacheMetadata)) {
-                JSONObject cached = new JSONObject(new String(limited(metadata, 8192), StandardCharsets.UTF_8));
-                if (source.equals(cached.optString("source", "official")) && tag.equals(cached.getString("tag")) &&
-                        name.equals(cached.optString("name")) &&
-                        (cached.getLong("assetId") != asset.getLong("id") || !sha.equals(cached.getString("sha256")))) {
-                    throw new IOException("The published asset changed for this tag. Cached image retained.");
-                }
-            }
-        }
         validate(image, details);
-        atomic(new File(directory, sha + ".bin"), image);
-        atomic(cacheMetadata, details.toString().getBytes(StandardCharsets.UTF_8));
-        var previous = directory.listFiles();
-        if (previous != null) for (File file : previous) {
-            if (file.getName().matches("[0-9a-f]{64}\\.bin") && !file.getName().equals(sha + ".bin")) {
-                Files.deleteIfExists(file.toPath());
-            }
-        }
+        cache.store(details, image);
         log.add("download", "Committed asset=" + asset.getLong("id") + " size=" + size + " sha256=" + sha);
         return details;
     }
 
     private byte[] reusableApp(JSONObject asset) {
         try {
-            var exported = loadExport();
-            byte[] bytes = exported.bytes();
-            if (bytes.length <= APP_LENGTH && bytes.length == asset.getInt("size") &&
-                    asset.getString("digest").equals("sha256:" + exported.details().getString("sha256"))) {
+            var exported = findCached(false, details ->
+                    asset.optString("digest").equals("sha256:" + details.optString("sha256")));
+            if (exported != null && exported.bytes().length <= APP_LENGTH && exported.bytes().length == asset.getInt("size")) {
                 log.add("image", "Reusing the verified offline app file");
-                return bytes;
+                return exported.bytes();
             }
         } catch (Exception ignored) {
             // The app file can still be acquired and verified from the selected release.
@@ -259,24 +260,20 @@ final class FirmwareLibrary {
     }
 
     synchronized Image loadExport() throws Exception {
-        JSONObject details;
-        try (var input = new FileInputStream(new File(directory, "export.json"))) {
-            details = new JSONObject(new String(limited(input, 8192), StandardCharsets.UTF_8));
+        var image = findCached(false, entry -> true);
+        if (image == null) throw new FileNotFoundException("No exportable firmware saved");
+        return image;
+    }
+
+    private static void validateExport(byte[] bytes, JSONObject details) throws Exception {
+        if (bytes.length != details.getInt("size") || !details.getString("sha256").equals(digest("SHA-256", bytes))) {
+            throw new IOException("Cached download digest check failed");
         }
-        String sha = details.getString("sha256");
-        if (!sha.matches("[0-9a-f]{64}")) throw new IOException("Invalid cached download digest");
-        try (var input = new FileInputStream(new File(directory, "export-" + sha + ".img"))) {
-            byte[] bytes = limited(input, EXPORT_LIMIT);
-            if (bytes.length != details.getInt("size") || !sha.equals(digest("SHA-256", bytes))) {
-                throw new IOException("Cached download digest check failed");
-            }
-            String name = details.getString("name");
-            if (!MeshCoreCatalogue.safeName(name)) throw new IOException("Invalid download filename");
-            if (!details.optBoolean("exportOnly") || !details.optString("source").equals("save")) {
-                if (name.endsWith(".uf2")) validateUf2(bytes, MeshCoreCatalogue.uf2Start(details.getString("board")));
-                else validateEspHeader(bytes);
-            }
-            return new Image(bytes, details);
+        String name = details.getString("name");
+        if (!MeshCoreCatalogue.safeName(name)) throw new IOException("Invalid download filename");
+        if (!details.optBoolean("exportOnly")) {
+            if (name.endsWith(".uf2")) validateUf2(bytes, MeshCoreCatalogue.uf2Start(details.getString("board")));
+            else validateEspHeader(bytes);
         }
     }
 
