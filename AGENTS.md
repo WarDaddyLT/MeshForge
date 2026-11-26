@@ -1,49 +1,44 @@
-# AGENTS.md — MeshForge Field Flasher for Android
+# AGENTS.md — MeshForge for Android
 
-**Author / product identity** WarDaddy 🪖  
-**Product** A native Android app for managing and flashing firmware to authorized LoRa radios over USB.  
-**Primary test hardware** Redmi Note 14 Pro as the USB host, Elecrow ThinkNode M5 as the first USB target.  
-**Repository baseline** Standalone Android app. Radio firmware is downloaded at runtime and maintained in its own upstream repositories.
+**Product and maintainer** MeshForge by WarDaddy 🪖
 
-## Mission
+MeshForge is an offline-capable Android USB field flasher and Configurator for MeshCore radios. The phone handles USB host, downloads, verification, diagnostics, and firmware storage. Firmware comes from its own release repositories. USB bootloaders are the current programming path. LoRa firmware transfer and a second mesh stack are outside scope.
 
-Build an offline-capable Android Field Flasher. From the phone, find the image for a specific radio and firmware role, download or select a complete image, connect the target by USB, confirm the update, program it, verify it, and report the outcome. The phone handles USB host, internet access, firmware storage, the interface, and diagnostics. Keep normal MeshCore behavior and target configuration intact where the target's update procedure supports it.
+## Current baseline
 
-The stock ThinkNode M5 and XIAO ESP32-S3 Wio may be USB targets. Their stock ports are not required to be hosts. Wi-Fi or mobile data can fetch firmware. Existing USB bootloaders are the programming path. LoRa firmware transfer and a second mesh stack are outside this project.
+- The published APK is `v0.1.16`. The current `main` branch is a limited beta candidate. For release decisions, verify the latest tag, open issues, exact APK, signing identity, and on-device results.
+- The Redmi Note 14 Pro is the primary Android host. The owner reported successful ThinkNode M5 app-only and stock T‑Echo Lite UF2 updates on earlier development builds. The Wio Tracker L1 E‑Ink enumerated as UF2 on macOS. Full Wio write and reboot validation is pending.
+- The ESP writer implements vetted M5 application updates. Implemented UF2 application profiles cover the stock T‑Echo and T‑Echo Lite, Wio Tracker L1 Pro and E‑Ink, and RAK WisMesh 1W Booster. Keep implemented paths and individually verified hardware results distinct in user-facing documentation.
+- The main destinations are **Configurator**, **Flash**, **Library**, and **Settings**. **Flash Progress** is a child of Flash. Configurator is the launch screen and works with an existing repeater or room server. Prioritize the existing form for radio parameters, admin passwords, and node information. Keep map and coordinate-specific UX outside the current feature scope.
+- Prioritize runtime verification after flashing, Wio validation, direct bootloader inspection, reliable offline storage and selection, and focused physical validation of Configurator and diagnostics. Track remaining work in the GitHub backlog.
 
 ## Repository and delivery
 
-- Keep the Android build and manifest at the repository root, with sources in `src/`, resources in `res/`, assets in `assets/`, and tests in `tests/`. Keep board metadata and compatibility checks in the app. Read upstream documentation and releases separately.
-- Produce a reproducible Android debug APK and concise build, install, usage, recovery and diagnostics documentation. Pin tool and library versions where possible and preserve third-party licenses. Test on the connected Android phone when the owner makes it available.
-- Ask before erasing storage, reflashing a physical device, changing its configuration, or other irreversible hardware actions unless already explicitly authorized for that target. A phone installation permission does not authorize writing a target. Use the M5 as the initial spare target with the owner's approval. Protect private device data.
-- No pushes or published builds without permission. Keep firmware backups, log exports, generated APKs and signing material out of Git. Never fabricate results. Record the exact device, build, image digest and verification evidence.
+- Keep the build and manifest at the repository root, with sources in `src/`, resources in `res/`, WebView assets in `assets/`, and tests in `tests/`. Build outputs and local signing material belong in ignored `out/`. Keep board metadata and compatibility checks in the app.
+- Run `node --test tests/*.test.mjs` and `./build.sh` from the root. Build the Android instrumentation APK using `./tests/build-usb-e2e.sh` for hardware work. Keep tool and library versions pinned, preserve third-party licenses, and update usage and recovery documentation when behavior changes.
+- Use one focused issue, commit, branch, and PR per deliverable when publishing changes. Target the maintainer’s own repository and keep upstream projects as references and firmware sources. Push or publish only with authorization. For a release, increment the Android version code, use the established release signing key, and smoke-test the exact published candidate on hardware.
+- Ask before erasing, reflashing, changing configuration, or performing other irreversible hardware actions unless the owner already explicitly authorized that target and action. Phone installation permission is separate from radio write permission. Keep backups, exported logs, generated APKs, private radio data, and signing material out of Git.
 
-## Remote firmware and offline library
+## Firmware selection and storage
 
-- Use the official MeshCore release source and curated mappings from the official web flasher. Offer SaveMeshcore and MeshCore-Solo through separately verified board, role, and format mappings. Keep manual board selection available when USB identification is ambiguous. Select exact board, role, channel and version. Use immutable asset identifiers and expected SHA-256 when available. Unknown hardware or contradictory evidence requires explicit selection or rejection. A generic bridge VID/PID and chip family cannot prove the board identity.
-- Use authenticated HTTPS with system trust roots, allowlisted release and redirect origins, bounded response sizes, timeouts and explicit errors. Do not execute downloaded code or installers. Keep transport verification, verified content hash and publisher signatures distinct. Remote sources are not automatically eligible for unattended flashing.
-- Stage each image completely before writing. Validate format, size, layout, digest and release metadata. Complete cache entries atomically, use bounded storage, handle interruption, and keep verified images available offline. Preserve app privacy and avoid exposing firmware backups to unrelated apps.
-- Treat ESP app-only, merged and manifested multi-segment images distinctly. The first M5 build supports vetted app-only updates. Full installations, role changes, downgrades, and recovery require explicit separate support and confirmation.
+- Use the official MeshCore release source and catalogue, plus vetted SaveMeshcore and MeshCore-Solo mappings and configured public GitHub sources. Always preserve explicit manual board selection. A bridge VID/PID or chip family alone is insufficient to identify the exact board variant.
+- Stage the exact selected file using its immutable asset ID and published SHA-256 where available. Use HTTPS with system trust roots, allowlisted release and redirect origins, timeouts, bounded responses, and explicit errors. Treat transport integrity, a published hash, and publisher signatures as separate properties. Never execute downloaded code or installers.
+- Check format, size, application layout, and digest before writing. Preserve atomic metadata and file writes, bound storage, handle interruptions, and reuse verified offline firmware. The repository download budget is 64 MiB. The curated cache currently retains the latest direct-write and exportable images.
+- Use release tags for individual alpha, beta, and release-candidate labels. Use GitHub’s prerelease flag for less specific releases. A repository’s `firmware-alpha` topic supplies an Alpha default even before the first release. Keep this metadata-driven for all repositories.
+- Distinguish ESP app-only updates from full merged or manifested images, and UF2 applications from serial DFU ZIPs and bootloader packages. Keep the user’s file choice through staging. Report actual unsupported write paths in Flash Progress. Retain explicit confirmation before physical writes.
 
-## USB programming
+## USB programming and Configurator
 
-- Use Android's USB Host API and reuse reviewed ESP flashing/serial libraries with pinned revisions. Exercise attachment, permission, connection, time bounds, disconnect, re-enumeration and verification as separate states. Serialize jobs and recheck the selected attachment immediately before writes.
-- Support the M5 CH340 path first, including actual ESP32-S3 chip, flash size, security state and app partition checks. Safe updates write only the verified app region. Preserve bootloader, partition tables, identity and settings. Respect secure boot and flash encryption. Log transfer verification and runtime verification separately.
-- Add the T-Deck and XIAO ESP32-S3 Wio only after board-specific tests. Later implement and verify USB UF2 for applicable nRF52840 models, including Wio Tracker L1 Pro and T-Echo Lite Kit where their exact bootloaders support it. Some targets need a manual transition to bootloader.
-- Use the official flasher’s board-specific OTAFix guidance and read the live bootloader version where available. A verified installed fix skips that step. Preserve unknown status when the reported version or target match is inconclusive.
-- Default to identify and explicit confirmation. A future plug-and-update policy requires an exact approved target, source, image, role, verified compatible layout and a bounded authorization. Android USB permission is separate from approval to write.
+- Use Android USB Host and the pinned serial and ESP libraries. Treat discovery, permission, layout check, write, verification, reset, and reconnect as separate phases. Serialize operations and recheck device attachment before writing.
+- For M5, check the actual ESP32-S3 chip, flash size, security state, partition layout, and boot selection. Write only the approved application range and verify written MD5. Respect secure boot and flash encryption. Add new ESP profiles only with exact hardware layout and board-specific test evidence.
+- For UF2, validate the family, application address range and matched bootloader identity. Handle manual entry when automatic entry fails. Report transfer delivery separately from runtime verification. A shared bootloader ID may span different radio or display variants.
+- Use the official board-specific OTAFix guidance. Show package availability, selection, and installation as distinct states. The current workflow uses `INFO_UF2.TXT` and package export. Keep the reported status unknown when identity or version is ambiguous.
+- In Configurator, use firmware capability checks and send only changed settings. Recheck the attached radio and verify writes by readback or acknowledgement as appropriate. Preserve credential privacy and the ability to inspect existing settings independently of flashing.
 
-## On-phone diagnostics
+## Diagnostics and validation
 
-Detailed diagnostics must work with the phone disconnected from the development computer. Save timestamped logs privately across restarts, record app and target versions, show the latest events in the app, and export the complete retained log using Android's document picker. Bound the log size and retain recent failed sessions.
+- Keep timestamped, bounded USB logs private on the phone across restarts. Save recent failed sessions and provide a complete retained export through Android Files. Log relevant device and interface descriptors, permission, driver and transport events, command metadata, timings, sizes, validation, transfers, reset and reconnect. Exclude credentials, private keys, raw firmware payloads, and private backup data.
+- Install and launch the APK on the available Android phone. Verify offline reuse, interrupted downloads, failure recovery, and diagnostic export without ADB. Use the read-only ESP layout and UF2 checks where appropriate.
+- Record the actual board and variant, APK commit/version, firmware asset and digest, transfer result, runtime identity, and settings-retention evidence for hardware tests. Distinguish source and fixture tests, reported user successes, read-only hardware checks, and full writes. Keep a known recovery procedure for each supported write profile.
 
-Log discovery and interface/endpoint descriptors, phone USB feature status, attach/detach, permission checks, driver selection, serial open/settings, control-line transitions, bootloader actions, command and response metadata, serial byte counts, elapsed time, retries and exceptions, image and plan validation, download results, write/verify results, and reset outcomes. Never log credentials, private keys, firmware payload bytes, or private backup contents. Report any overflow or retention limit.
-
-## Validation
-
-1. Build the APK using installed Android SDK tools, install via ADB, launch it, and verify on-device persistence and export of diagnostics.
-2. Check USB host operation with one real target, starting with discovery and permission, then read-only chip and flash-layout checks.
-3. On the authorized spare, verify an exact app-only update, checksum, reboot, and configuration retention. Exercise disconnection and errors before permitting unattended operations.
-4. Verify release lookup, interrupted download, wrong digest and layout rejection, offline reuse, and log export without ADB. Record hardware validation and release evidence with the relevant change.
-
-Primary references: [Android USB host](https://developer.android.com/develop/connectivity/usb/host), [Espressif esptool-js](https://github.com/espressif/esptool-js), [MeshCore release assets](https://github.com/meshcore-dev/MeshCore/releases), [official web flasher catalogue](https://github.com/meshcore-dev/flasher.meshcore.io).
+Primary references: [Android USB host](https://developer.android.com/develop/connectivity/usb/host), [Espressif esptool-js](https://github.com/espressif/esptool-js), [MeshCore releases](https://github.com/meshcore-dev/MeshCore/releases), [official flasher catalogue](https://github.com/meshcore-dev/flasher.meshcore.io), and [MeshForge backlog](https://github.com/WarDaddyLT/MeshForge/issues?q=is%3Aissue+is%3Aopen).
