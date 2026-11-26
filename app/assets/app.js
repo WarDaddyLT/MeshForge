@@ -191,6 +191,10 @@ function buttons() {
   byId('remoteFirmware').hidden = local;
   byId('localFirmwareField').hidden = !local;
   byId('roleField').hidden = generic;
+  const channel = local ? '' : releaseChannel(release);
+  const warning = byId('releaseWarning');
+  warning.hidden = !channel;
+  warning.textContent = channel ? channel + ' firmware. Use it for testing.' : '';
   byId('stagedImage').textContent = ready ? 'Ready to flash · ' + ready.name :
     offline ? 'Available in Firmware Library for export.' :
     release && generic ? 'A repository file can be saved for offline use. Direct USB flashing requires a verified board and image match.' : '';
@@ -501,6 +505,23 @@ function matchesSelectedFirmware(release) {
     target.device === board.name + ' (' + board.type + ')' && target.role === role.title);
 }
 
+function releaseChannel(release) {
+  const tag = release?.tag || '';
+  for (const [pattern, label] of [
+    [/(?:^|[-._])alpha(?=$|[-._+0-9])/i, 'Alpha'],
+    [/(?:^|[-._])beta(?=$|[-._+0-9])/i, 'Beta'],
+    [/(?:^|[-._])rc(?=$|[-._+0-9])/i, 'Release candidate']
+  ]) {
+    if (pattern.test(tag)) return label;
+  }
+  return release?.prerelease === true ? 'Prerelease' : '';
+}
+
+function earlyFirmwareOnly(files) {
+  const firmware = files.filter(file => file.downloadable !== false && /\.(?:bin|uf2|zip|hex)$/i.test(file.name || ''));
+  return firmware.length > 0 && firmware.every(releaseChannel);
+}
+
 function mergedBinary(release) {
   return release.types?.includes('merged') || /[-_.]merged\.bin$/i.test(release.name || '');
 }
@@ -532,17 +553,21 @@ function renderFirmwareChoices(releases, preferred = selectedRelease()) {
     const name = release.name || release.version;
     const version = release.name && release.version &&
       !release.name.toLowerCase().includes(release.version.toLowerCase()) ? release.version : '';
-    const label = [name, version, formats.join(', '), release.cached ? 'Downloaded' : ''].filter(Boolean).join(' · ');
+    const label = [releaseChannel(release), name, version, formats.join(', '), release.cached ? 'Downloaded' : ''].filter(Boolean).join(' · ');
     addOption(select, String(index), label);
   }
   const previous = preferred && versionList.findIndex(release =>
     release.tag === preferred.tag && release.name === preferred.name && release.id === preferred.id);
   if (previous >= 0 && preferred) select.value = String(previous);
   else {
-    const flashable = versionList.findIndex(flashableRelease);
-    const matching = flashable >= 0 ? flashable :
-      versionList.findIndex(release => !mergedBinary(release) && matchesSelectedFirmware(release));
-    if (matching >= 0) select.value = String(matching);
+    const matching = release => !mergedBinary(release) && matchesSelectedFirmware(release);
+    for (const eligible of [flashableRelease, matching, release => !mergedBinary(release)]) {
+      const stable = versionList.findIndex(release => eligible(release) && !releaseChannel(release));
+      const index = stable >= 0 ? stable : versionList.findIndex(eligible);
+      if (index < 0) continue;
+      select.value = String(index);
+      break;
+    }
   }
   select.disabled = !versionList.length;
 }
@@ -843,7 +868,9 @@ function drawLibrary() {
     if (search && !ordered.length) continue;
     const root = repositoryElement('details', '', 'library-repository');
     libraryDisclosure(root, 'repository:' + key, true, Boolean(search));
-    root.append(repositoryElement('summary', repository, 'library-repository-title'));
+    const state = libraryRepositoryFiles.get(url);
+    const title = earlyFirmwareOnly(state?.files ?? []) ? repository + ' · Prerelease firmware only' : repository;
+    root.append(repositoryElement('summary', title, 'library-repository-title'));
     for (const [index, [version, entries]] of ordered.entries()) {
       const versionRow = repositoryElement('details', '', 'library-version');
       libraryDisclosure(versionRow, 'version:' + key + ':' + version, index === 0, Boolean(search));
@@ -854,7 +881,6 @@ function drawLibrary() {
       root.append(versionRow);
     }
     if (!ordered.length && url && !search) {
-      const state = libraryRepositoryFiles.get(url);
       const message = state?.error || (state?.loading || !state ? 'Loading releases…' :
         search ? 'No firmware matches this search.' : 'No release assets in the published releases.');
       root.append(repositoryElement('p', message, 'library-message'));
@@ -877,7 +903,7 @@ function drawLibraryFile(file) {
   row.append(repositoryElement('span', file.name || file.tag, 'library-filename'));
   const details = file.kind !== 'remote' ? 'Available offline' :
     file.downloadable === false ? 'Download unavailable' : file.digest ? '' : 'No published checksum';
-  row.append(repositoryElement('span', details, 'library-metadata'));
+  row.append(repositoryElement('span', [releaseChannel(file), details].filter(Boolean).join(' · '), 'library-metadata'));
   const actions = repositoryElement('div', '', 'actions');
   const exportFile = file.kind === 'remote' ? null : file.kind === 'repository' || file.kind === 'addedLocal' ?
     () => Phone.saveRepositoryAsset(file.name, file.sha256, file.size) :
@@ -1029,9 +1055,9 @@ window.onRepositoryAssets = (id, result, error) => {
   versionsLoading = false;
   const files = result?.files ?? [];
   renderFirmwareChoices(files, request.previous);
-  byId('versionStatus').textContent = error || result?.notice || (files.length ?
-    'Choose a release file. Direct flashing requires a verified board and image match.' :
-    'No firmware files were found in this repository.');
+  byId('versionStatus').textContent = error || result?.notice || (!files.length ?
+    'No published release files in this repository.' : earlyFirmwareOnly(files) ?
+    'This repository currently offers prerelease firmware only.' : '');
   buttons();
 };
 

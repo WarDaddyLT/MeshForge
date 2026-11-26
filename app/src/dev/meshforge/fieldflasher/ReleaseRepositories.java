@@ -83,7 +83,7 @@ final class ReleaseRepositories {
         var removed = preferences.getStringSet("removed-defaults", Set.of());
         for (String url : new String[]{"https://github.com/meshcore-dev/MeshCore",
                 "https://github.com/aigarslv/SaveMeshcore", "https://github.com/MarekZegare4/MeshCore-Solo",
-                "https://github.com/WarDaddyLT/Meshcore-Solo-Zygis",
+                "https://github.com/WarDaddyLT/Meshcore-Solo-Zygis", "https://github.com/WarDaddyLT/MeshCore-Hardened",
                 "https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX"}) {
             Link link = parse(url);
             String key = link.url().toLowerCase(Locale.ROOT);
